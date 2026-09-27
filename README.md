@@ -8,7 +8,7 @@ For more information, please [read our documentation](https://developer.android.
 
 Requirements
 ------------
-[Android Studio 4.1](https://developer.android.com/studio/preview/index.html) or newer.
+[Android Studio](https://developer.android.com/studio) Ladybug (2024.2.1) or newer.
 
 Samples
 -------

@@ -16,20 +16,20 @@
 
 package com.example.jetnews
 
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.MediumTest
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.ui.test.assertIsDisplayed
-import androidx.ui.test.createComposeRule
-import androidx.ui.test.doClick
-import androidx.ui.test.findByText
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.runners.JUnit4
 
 @MediumTest
-@RunWith(JUnit4::class)
+@RunWith(AndroidJUnit4::class)
 class JetnewsUiTest {
 
     @get:Rule
@@ -42,12 +42,12 @@ class JetnewsUiTest {
 
     @Test
     fun app_launches() {
-        findByText("Jetnews").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Jetnews").assertIsDisplayed()
     }
 
     @Test
     fun app_opensArticle() {
-        findAllBySubstring("Manuel Vivo").first().doClick()
-        findAllBySubstring("July 30 • 3 min read").first().assertIsDisplayed()
+        composeTestRule.findAllBySubstring("Manuel Vivo").first().performClick()
+        composeTestRule.findAllBySubstring("July 30 • 3 min read").first().assertIsDisplayed()
     }
 }

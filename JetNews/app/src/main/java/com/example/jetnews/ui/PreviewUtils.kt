@@ -16,15 +16,15 @@
 
 package com.example.jetnews.ui
 
-import androidx.compose.Composable
-import androidx.ui.material.ColorPalette
-import androidx.ui.material.MaterialTheme
-import androidx.ui.material.Surface
-import androidx.ui.material.Typography
+import androidx.compose.material.Colors
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
+import androidx.compose.material.Typography
+import androidx.compose.runtime.Composable
 
 @Composable
 internal fun ThemedPreview(
-    colors: ColorPalette = lightThemeColors,
+    colors: Colors = lightThemeColors,
     typography: Typography = themeTypography,
     children: @Composable() () -> Unit
 ) {

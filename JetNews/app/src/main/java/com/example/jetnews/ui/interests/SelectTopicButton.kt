@@ -16,18 +16,20 @@
 
 package com.example.jetnews.ui.interests
 
-import androidx.compose.Composable
-import androidx.ui.core.Modifier
-import androidx.ui.foundation.Box
-import androidx.ui.foundation.Icon
-import androidx.ui.foundation.shape.corner.CircleShape
-import androidx.ui.layout.padding
-import androidx.ui.layout.preferredSize
-import androidx.ui.material.ColorPalette
-import androidx.ui.material.MaterialTheme
-import androidx.ui.res.vectorResource
-import androidx.ui.tooling.preview.Preview
-import androidx.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.Colors
+import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.darkThemeColors
@@ -35,36 +37,34 @@ import com.example.jetnews.ui.lightThemeColors
 
 @Composable
 fun SelectTopicButton(
-    modifier: Modifier = Modifier.None,
+    modifier: Modifier = Modifier,
     selected: Boolean = false
 ) {
     if (selected) {
-        SelectTopicButtonOn(modifier.preferredSize(36.dp, 36.dp))
+        SelectTopicButtonOn(modifier.size(36.dp, 36.dp))
     } else {
-        SelectTopicButtonOff(modifier.preferredSize(36.dp, 36.dp))
+        SelectTopicButtonOff(modifier.size(36.dp, 36.dp))
     }
 }
 
 @Composable
-private fun SelectTopicButtonOn(modifier: Modifier = Modifier.None) {
+private fun SelectTopicButtonOn(modifier: Modifier = Modifier) {
     Box(
-        backgroundColor = MaterialTheme.colors.primary,
-        shape = CircleShape,
-        modifier = modifier
+        modifier = modifier.background(MaterialTheme.colors.primary, CircleShape),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(vectorResource(R.drawable.ic_check))
+        Icon(painterResource(R.drawable.ic_check), contentDescription = null)
     }
 }
 
 @Composable
-private fun SelectTopicButtonOff(modifier: Modifier = Modifier.None) {
+private fun SelectTopicButtonOff(modifier: Modifier = Modifier) {
     val borderColor = MaterialTheme.colors.onSurface.copy(alpha = 0.12f)
     Box(
-        backgroundColor = borderColor,
-        shape = CircleShape,
-        modifier = modifier
+        modifier = modifier.background(borderColor, CircleShape),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(vectorResource(R.drawable.ic_add))
+        Icon(painterResource(R.drawable.ic_add), contentDescription = null)
     }
 }
 
@@ -105,7 +105,7 @@ fun SelectTopicButtonPreviewOnDark() {
 }
 
 @Composable
-private fun SelectTopicButtonPreviewTemplate(themeColors: ColorPalette, selected: Boolean) {
+private fun SelectTopicButtonPreviewTemplate(themeColors: Colors, selected: Boolean) {
     ThemedPreview(themeColors) {
         SelectTopicButton(
             modifier = Modifier.padding(32.dp),

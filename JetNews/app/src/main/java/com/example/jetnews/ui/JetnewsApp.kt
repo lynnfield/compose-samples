@@ -17,29 +17,29 @@
 package com.example.jetnews.ui
 
 import androidx.annotation.DrawableRes
-import androidx.compose.Composable
-import androidx.ui.animation.Crossfade
-import androidx.ui.core.Modifier
-import androidx.ui.foundation.Image
-import androidx.ui.foundation.Text
-import androidx.ui.foundation.shape.corner.RoundedCornerShape
-import androidx.ui.graphics.ColorFilter
-import androidx.ui.layout.Arrangement
-import androidx.ui.layout.Column
-import androidx.ui.layout.Row
-import androidx.ui.layout.Spacer
-import androidx.ui.layout.fillMaxSize
-import androidx.ui.layout.fillMaxWidth
-import androidx.ui.layout.padding
-import androidx.ui.layout.preferredHeight
-import androidx.ui.layout.preferredWidth
-import androidx.ui.material.Divider
-import androidx.ui.material.MaterialTheme
-import androidx.ui.material.Surface
-import androidx.ui.material.TextButton
-import androidx.ui.res.vectorResource
-import androidx.ui.tooling.preview.Preview
-import androidx.ui.unit.dp
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Divider
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.AppContainer
 import com.example.jetnews.data.interests.InterestsRepository
@@ -87,7 +87,7 @@ fun AppDrawer(
     closeDrawer: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Spacer(Modifier.preferredHeight(24.dp))
+        Spacer(Modifier.height(24.dp))
         JetNewsLogo(Modifier.padding(16.dp))
         Divider(color = MaterialTheme.colors.onSurface.copy(alpha = .2f))
         DrawerButton(
@@ -113,15 +113,17 @@ fun AppDrawer(
 }
 
 @Composable
-private fun JetNewsLogo(modifier: Modifier = Modifier.None) {
+private fun JetNewsLogo(modifier: Modifier = Modifier) {
     Row(modifier = modifier) {
         Image(
-            asset = vectorResource(R.drawable.ic_jetnews_logo),
+            painter = painterResource(R.drawable.ic_jetnews_logo),
+            contentDescription = null,
             colorFilter = ColorFilter.tint(MaterialTheme.colors.primary)
         )
-        Spacer(Modifier.preferredWidth(8.dp))
+        Spacer(Modifier.width(8.dp))
         Image(
-            asset = vectorResource(R.drawable.ic_jetnews_wordmark),
+            painter = painterResource(R.drawable.ic_jetnews_wordmark),
+            contentDescription = null,
             colorFilter = ColorFilter.tint(MaterialTheme.colors.onSurface)
         )
     }
@@ -133,7 +135,7 @@ private fun DrawerButton(
     label: String,
     isSelected: Boolean,
     action: () -> Unit,
-    modifier: Modifier = Modifier.None
+    modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colors
     val imageAlpha = if (isSelected) {
@@ -163,11 +165,12 @@ private fun DrawerButton(
         TextButton(onClick = action, modifier = Modifier.fillMaxWidth()) {
             Row(horizontalArrangement = Arrangement.Start, modifier = Modifier.fillMaxWidth()) {
                 Image(
-                    asset = vectorResource(icon),
+                    painter = painterResource(icon),
+                    contentDescription = null,
                     colorFilter = ColorFilter.tint(textIconColor),
                     alpha = imageAlpha
                 )
-                Spacer(Modifier.preferredWidth(16.dp))
+                Spacer(Modifier.width(16.dp))
                 Text(
                     text = label,
                     style = MaterialTheme.typography.body2.copy(color = textIconColor),

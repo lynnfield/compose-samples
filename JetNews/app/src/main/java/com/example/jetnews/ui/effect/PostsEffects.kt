@@ -16,9 +16,12 @@
 
 package com.example.jetnews.ui.effect
 
-import androidx.compose.Composable
-import androidx.compose.onActive
-import androidx.compose.state
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.example.jetnews.data.Result
 import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.model.Post
@@ -35,11 +38,11 @@ import com.example.jetnews.ui.UiState
 @Composable
 fun fetchPost(postId: String, postsRepository: PostsRepository): UiState<Post> {
 
-    var postState: UiState<Post> by state { UiState.Loading }
+    var postState: UiState<Post> by remember { mutableStateOf<UiState<Post>>(UiState.Loading) }
 
     // Whenever this effect is used in a composable function, it'll load data from the repository
     // when the first composition is applied
-    onActive {
+    LaunchedEffect(postId) {
         postsRepository.getPost(postId) { result ->
             postState = when (result) {
                 is Result.Success -> {
