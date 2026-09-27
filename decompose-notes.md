@@ -20,6 +20,43 @@ open, and what remains to be verified on a real Android toolchain. Edit freely a
 | ktlint | Stay on 0.36.0; write code its (pre-Kotlin-1.4) parser accepts: no `data object`, `sealed interface` or trailing commas; `@Composable() () -> Unit` | Avoids a reformatting diff mixed into the architecture change. |
 | Verification in the cloud session | A scratchpad-only JVM harness (Compose Multiplatform desktop 1.7.3 + `android-all` + stubs + Decompose JVM) compiles `main` and runs `test`; not committed | `dl.google.com` is blocked there, so no real Android build. |
 
+## Implementation status
+
+Implemented in this order (each commit compiled, unit-tested and ktlint-checked with the JVM harness):
+
+1. Dependencies (Decompose, extensions-compose, serialization, coroutines, test libraries)
+2. `data/RepositoryCoroutines.kt` (suspend adapters) and `Result.toUiState()`
+3. `FavoritesStore`, `SelectedTopicsStore` in `AppContainer`
+4. `HomeComponent` / `DefaultHomeComponent`
+5. `ArticleComponent` / `DefaultArticleComponent`
+6. `InterestsComponent` / `DefaultInterestsComponent` (+ `topicKey`)
+7. `RootComponent` / `DefaultRootComponent` (`childStack`, `@Serializable Config`)
+8. Post cards take click / favorite callbacks
+9. Screens render components; `JetnewsApp` uses `Children` + `fade()`; `MainActivity` uses
+   `defaultComponentContext()`; previews use fakes in `ui/PreviewComponents.kt`; UI test helper
+   builds a fresh root
+10. `Status.kt`, `effect/PostsEffects.kt`, `uiStateFrom`, `previewDataFrom`, `toggleBookmark`,
+    `isFavorite` removed
+11. Drawer closes before navigating (see deviation 10)
+
+Unit tests (`JetNews/app/src/test`, run with `./gradlew :app:testDebugUnitTest`): 42 tests across
+`RepositoryCoroutinesTest`, `FavoritesStoreTest`, `SelectedTopicsStoreTest`,
+`DefaultHomeComponentTest`, `DefaultArticleComponentTest`, `DefaultInterestsComponentTest` and
+`DefaultRootComponentTest`. They include retention across a simulated configuration change
+(shared `InstanceKeeperDispatcher`), system back via `BackDispatcher`, and stack restoration after
+process death via `StateKeeperDispatcher`.
+
+### How the cloud session verified it
+
+A throwaway Gradle project (not committed) compiled `JetNews/app/src/main/java` and
+`androidTest/.../TestHelper.kt` with Kotlin 2.1.0 against Compose Multiplatform desktop 1.7.3
+(compile-only), Decompose/extensions-compose 3.3.0 (JVM), `org.robolectric:android-all`
+(compile-only) and stubs for `R`, `painterResource(Int)`, `Font(resId)`, `LocalContext`,
+`ImageBitmap.imageResource`, `setContent`, `ComponentActivity`/`AppCompatActivity`,
+`@DrawableRes`, `@Preview` and `defaultComponentContext()`; ran `src/test` on the JVM; and ran
+ktlint 0.36.0 over `src/**/*.kt`. Compose is compile-only there because its runtime needs androidx
+artifacts that are only on Google Maven, so no composable was executed.
+
 ## Deviations from context.md
 
 1. **Lifecycle vs retention.** "Launch work in a scope tied to the `ComponentContext` lifecycle" and
@@ -43,6 +80,11 @@ open, and what remains to be verified on a real Android toolchain. Edit freely a
 9. **"Survives rotation without reloading"** is hard to observe even at `cf290e9`, because
    `FakePostsRepository` only sleeps on its first call and outlives the Activity. The InstanceKeeper
    retention unit tests are the real check.
+10. **Drawer navigation waits for the drawer to close.** `Children` keeps the saveable state of
+   back-stack screens (including the drawer state), so navigating while the drawer was still
+   closing could restore Home with the drawer open. The screens now close the drawer, then call the
+   root. Before, navigation and closing ran concurrently. Upstream `main` hit the same class of
+   problem later (`12814146` "Fix state saving with drawer").
 
 ## Open questions
 
@@ -52,6 +94,10 @@ open, and what remains to be verified on a real Android toolchain. Edit freely a
 - [ ] Upgrade path: moving to Decompose 3.4+/3.5 requires a Compose BOM bump (foundation 1.8.x).
       Do it on both branches together, or leave pinned?
 - [ ] ktlint 0.36.0 is very old; upgrade it on both branches in a separate change?
+- [ ] New files have no license header (the existing files carry "Copyright 2019 Google, Inc.",
+      which doesn't apply to new code). Add a header of your choice?
+- [ ] Drawer closes before navigating (deviation 10): keep, or snap it closed and navigate
+      immediately to keep the original timing?
 - [ ] Should favorites/topics move into the repositories (as upstream `main` did) instead of
       separate stores? The brief says stores; this changes the data layer, so it would affect the
       `functions-based` comparison too.
@@ -83,4 +129,8 @@ there:
 - [ ] Rotation on each screen: no "Loading" flash, selected Interests tab kept, stack kept
 - [ ] "Don't keep activities" / process death while on an Article restores that Article
 - [ ] Share action opens the chooser; "Functionality not available" dialog still works
-- [ ] `@Preview`s render in Android Studio
+- [ ] `@Preview`s render in Android Studio (they now go through `ui/PreviewComponents.kt`)
+- [ ] Decompose's main-thread checks: navigation is only triggered from UI callbacks and
+      `rememberCoroutineScope`, but confirm no "not on main thread" errors in logcat
+- [ ] Dependency resolution: `fragment-ktx` 1.6.2 (from Decompose) and coroutines 1.9.0 alongside
+      the Compose BOM; check `./gradlew :app:dependencies` for unexpected upgrades
