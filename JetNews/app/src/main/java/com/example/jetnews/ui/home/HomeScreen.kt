@@ -54,6 +54,7 @@ import com.example.jetnews.data.posts.impl.PreviewPostsRepository
 import com.example.jetnews.data.posts.impl.posts
 import com.example.jetnews.model.Post
 import com.example.jetnews.ui.AppDrawer
+import com.example.jetnews.ui.JetnewsStatus
 import com.example.jetnews.ui.Screen
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.UiState
@@ -101,7 +102,10 @@ fun HomeScreenScaffold(
                 when (uiState) {
                     is UiState.Success -> HomeScreenBody(
                         modifier = modifier,
-                        posts = uiState.data
+                        posts = uiState.data,
+                        favorites = JetnewsStatus.favorites.toSet(),
+                        onPostClicked = { navigateTo(Screen.Article(it)) },
+                        onToggleFavorite = ::toggleBookmark
                     )
                     is UiState.Loading -> {
                         Text(
@@ -121,6 +125,9 @@ fun HomeScreenScaffold(
 @Composable
 private fun HomeScreenBody(
     posts: List<Post>,
+    favorites: Set<String>,
+    onPostClicked: (postId: String) -> Unit,
+    onToggleFavorite: (postId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val postTop = posts[3]
@@ -129,15 +136,15 @@ private fun HomeScreenBody(
     val postsHistory = posts.subList(7, 10)
 
     Column(modifier.verticalScroll(rememberScrollState())) {
-        HomeScreenTopSection(postTop)
-        HomeScreenSimpleSection(postsSimple)
-        HomeScreenPopularSection(postsPopular)
-        HomeScreenHistorySection(postsHistory)
+        HomeScreenTopSection(postTop, onPostClicked)
+        HomeScreenSimpleSection(postsSimple, favorites, onPostClicked, onToggleFavorite)
+        HomeScreenPopularSection(postsPopular, onPostClicked)
+        HomeScreenHistorySection(postsHistory, onPostClicked)
     }
 }
 
 @Composable
-private fun HomeScreenTopSection(post: Post) {
+private fun HomeScreenTopSection(post: Post, onPostClicked: (postId: String) -> Unit) {
     CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
         Text(
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp),
@@ -147,23 +154,33 @@ private fun HomeScreenTopSection(post: Post) {
     }
     PostCardTop(
         post = post,
-        modifier = Modifier.clickable(onClick = { navigateTo(Screen.Article(post.id)) })
+        modifier = Modifier.clickable(onClick = { onPostClicked(post.id) })
     )
     HomeScreenDivider()
 }
 
 @Composable
-private fun HomeScreenSimpleSection(posts: List<Post>) {
+private fun HomeScreenSimpleSection(
+    posts: List<Post>,
+    favorites: Set<String>,
+    onPostClicked: (postId: String) -> Unit,
+    onToggleFavorite: (postId: String) -> Unit
+) {
     Column {
         posts.forEach { post ->
-            PostCardSimple(post)
+            PostCardSimple(
+                post = post,
+                isFavorite = post.id in favorites,
+                onClick = onPostClicked,
+                onToggleFavorite = onToggleFavorite
+            )
             HomeScreenDivider()
         }
     }
 }
 
 @Composable
-private fun HomeScreenPopularSection(posts: List<Post>) {
+private fun HomeScreenPopularSection(posts: List<Post>, onPostClicked: (postId: String) -> Unit) {
     Column {
         CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
             Text(
@@ -178,7 +195,7 @@ private fun HomeScreenPopularSection(posts: List<Post>) {
                 .padding(end = 16.dp, bottom = 16.dp)
         ) {
             posts.forEach { post ->
-                PostCardPopular(post, Modifier.padding(start = 16.dp))
+                PostCardPopular(post, onPostClicked, Modifier.padding(start = 16.dp))
             }
         }
         HomeScreenDivider()
@@ -186,10 +203,10 @@ private fun HomeScreenPopularSection(posts: List<Post>) {
 }
 
 @Composable
-private fun HomeScreenHistorySection(posts: List<Post>) {
+private fun HomeScreenHistorySection(posts: List<Post>, onPostClicked: (postId: String) -> Unit) {
     Column {
         posts.forEach { post ->
-            PostCardHistory(post)
+            PostCardHistory(post, onPostClicked)
             HomeScreenDivider()
         }
     }
@@ -208,7 +225,7 @@ private fun HomeScreenDivider() {
 fun PreviewHomeScreenBody() {
     ThemedPreview {
         val posts = loadFakePosts()
-        HomeScreenBody(posts)
+        HomeScreenBody(posts, favorites = emptySet(), onPostClicked = {}, onToggleFavorite = {})
     }
 }
 
@@ -228,7 +245,7 @@ private fun PreviewDrawerOpen() {
 fun PreviewHomeScreenBodyDark() {
     ThemedPreview(darkThemeColors) {
         val posts = loadFakePosts()
-        HomeScreenBody(posts)
+        HomeScreenBody(posts, favorites = emptySet(), onPostClicked = {}, onToggleFavorite = {})
     }
 }
 
