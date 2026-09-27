@@ -41,46 +41,42 @@ import androidx.compose.material.rememberDrawerState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.example.jetnews.R
-import com.example.jetnews.data.posts.PostsRepository
-import com.example.jetnews.data.posts.impl.PreviewPostsRepository
 import com.example.jetnews.data.posts.impl.posts
 import com.example.jetnews.model.Post
 import com.example.jetnews.ui.AppDrawer
-import com.example.jetnews.ui.JetnewsStatus
-import com.example.jetnews.ui.Screen
+import com.example.jetnews.ui.DrawerItem
+import com.example.jetnews.ui.PreviewHomeComponent
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.UiState
 import com.example.jetnews.ui.darkThemeColors
-import com.example.jetnews.ui.navigateTo
-import com.example.jetnews.ui.previewDataFrom
-import com.example.jetnews.ui.uiStateFrom
+import com.example.jetnews.ui.previewPosts
 import kotlinx.coroutines.launch
 
 @Composable
-fun HomeScreen(postsRepository: PostsRepository) {
-    val postsState = uiStateFrom(postsRepository::getPosts)
-    HomeScreenScaffold(postsState = postsState)
-}
-
-@Composable
-fun HomeScreenScaffold(
-    scaffoldState: ScaffoldState = rememberScaffoldState(),
-    postsState: UiState<List<Post>>
+fun HomeScreen(
+    component: HomeComponent,
+    onHomeClicked: () -> Unit,
+    onInterestsClicked: () -> Unit,
+    scaffoldState: ScaffoldState = rememberScaffoldState()
 ) {
+    val model by component.model.subscribeAsState()
     val coroutineScope = rememberCoroutineScope()
     Scaffold(
         scaffoldState = scaffoldState,
         drawerContent = {
             AppDrawer(
-                currentScreen = Screen.Home,
+                currentItem = DrawerItem.Home,
+                onHomeClicked = onHomeClicked,
+                onInterestsClicked = onInterestsClicked,
                 closeDrawer = { coroutineScope.launch { scaffoldState.drawerState.close() } }
             )
         },
@@ -98,14 +94,14 @@ fun HomeScreenScaffold(
         },
         content = { innerPadding ->
             val modifier = Modifier.padding(innerPadding)
-            Crossfade(targetState = postsState) { uiState ->
+            Crossfade(targetState = model.posts) { uiState ->
                 when (uiState) {
                     is UiState.Success -> HomeScreenBody(
                         modifier = modifier,
                         posts = uiState.data,
-                        favorites = JetnewsStatus.favorites.toSet(),
-                        onPostClicked = { navigateTo(Screen.Article(it)) },
-                        onToggleFavorite = ::toggleBookmark
+                        favorites = model.favorites,
+                        onPostClicked = component::onPostClicked,
+                        onToggleFavorite = component::onFavoriteToggled
                     )
                     is UiState.Loading -> {
                         Text(
@@ -224,8 +220,12 @@ private fun HomeScreenDivider() {
 @Composable
 fun PreviewHomeScreenBody() {
     ThemedPreview {
-        val posts = loadFakePosts()
-        HomeScreenBody(posts, favorites = emptySet(), onPostClicked = {}, onToggleFavorite = {})
+        HomeScreenBody(
+            posts = previewPosts(),
+            favorites = emptySet(),
+            onPostClicked = {},
+            onToggleFavorite = {}
+        )
     }
 }
 
@@ -233,9 +233,11 @@ fun PreviewHomeScreenBody() {
 @Composable
 private fun PreviewDrawerOpen() {
     ThemedPreview {
-        HomeScreenScaffold(
-            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open)),
-            postsState = UiState.Success(posts)
+        HomeScreen(
+            component = PreviewHomeComponent(posts),
+            onHomeClicked = {},
+            onInterestsClicked = {},
+            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open))
         )
     }
 }
@@ -244,8 +246,12 @@ private fun PreviewDrawerOpen() {
 @Composable
 fun PreviewHomeScreenBodyDark() {
     ThemedPreview(darkThemeColors) {
-        val posts = loadFakePosts()
-        HomeScreenBody(posts, favorites = emptySet(), onPostClicked = {}, onToggleFavorite = {})
+        HomeScreenBody(
+            posts = previewPosts(),
+            favorites = emptySet(),
+            onPostClicked = {},
+            onToggleFavorite = {}
+        )
     }
 }
 
@@ -253,14 +259,11 @@ fun PreviewHomeScreenBodyDark() {
 @Composable
 private fun PreviewDrawerOpenDark() {
     ThemedPreview(darkThemeColors) {
-        HomeScreenScaffold(
-            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open)),
-            postsState = UiState.Success(posts)
+        HomeScreen(
+            component = PreviewHomeComponent(posts),
+            onHomeClicked = {},
+            onInterestsClicked = {},
+            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open))
         )
     }
-}
-
-@Composable
-private fun loadFakePosts(): List<Post> {
-    return previewDataFrom(PreviewPostsRepository(LocalContext.current)::getPosts)
 }

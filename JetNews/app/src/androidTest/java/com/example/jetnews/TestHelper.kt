@@ -20,31 +20,34 @@ import android.content.Context
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
+import com.arkivanov.decompose.DefaultComponentContext
+import com.arkivanov.essenty.lifecycle.LifecycleRegistry
+import com.arkivanov.essenty.lifecycle.resume
 import com.example.jetnews.data.AppContainer
 import com.example.jetnews.ui.JetnewsApp
-import com.example.jetnews.ui.JetnewsStatus
-import com.example.jetnews.ui.Screen
+import com.example.jetnews.ui.root.DefaultRootComponent
 
 /**
- * Launches the app from a test context
+ * Launches the app from a test context, with fresh navigation and stores
  */
 fun ComposeContentTestRule.launchJetNewsApp(context: Context) {
-    JetnewsStatus.resetState()
     setContent {
-        JetnewsApp(AppContainer(context))
+        val root = remember {
+            val appContainer = AppContainer(context)
+            DefaultRootComponent(
+                componentContext = DefaultComponentContext(LifecycleRegistry().apply { resume() }),
+                postsRepository = appContainer.postsRepository,
+                interestsRepository = appContainer.interestsRepository,
+                favoritesStore = appContainer.favoritesStore,
+                selectedTopicsStore = appContainer.selectedTopicsStore
+            )
+        }
+        JetnewsApp(root)
     }
-}
-
-/**
- * Resets the state of the app
- */
-fun JetnewsStatus.resetState() {
-    currentScreen = Screen.Home
-    favorites.clear()
-    selectedTopics.clear()
 }
 
 /**

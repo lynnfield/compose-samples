@@ -19,7 +19,9 @@ package com.example.jetnews.ui
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import com.arkivanov.decompose.defaultComponentContext
 import com.example.jetnews.JetnewsApplication
+import com.example.jetnews.ui.root.DefaultRootComponent
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,8 +29,17 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val appContainer = (application as JetnewsApplication).container
+        // Recreated with the Activity. The navigation stack is restored from the saved state and
+        // the loaded screen state is kept by each component's InstanceKeeper.
+        val root = DefaultRootComponent(
+            componentContext = defaultComponentContext(),
+            postsRepository = appContainer.postsRepository,
+            interestsRepository = appContainer.interestsRepository,
+            favoritesStore = appContainer.favoritesStore,
+            selectedTopicsStore = appContainer.selectedTopicsStore
+        )
         setContent {
-            JetnewsApp(appContainer = appContainer)
+            JetnewsApp(root = root)
         }
     }
 }

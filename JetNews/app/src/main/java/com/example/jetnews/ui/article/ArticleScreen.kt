@@ -48,32 +48,38 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.example.jetnews.R
-import com.example.jetnews.data.posts.PostsRepository
-import com.example.jetnews.data.posts.impl.PreviewPostsRepository
 import com.example.jetnews.data.posts.impl.post3
-import com.example.jetnews.data.successOr
 import com.example.jetnews.model.Post
-import com.example.jetnews.ui.Screen
+import com.example.jetnews.ui.PreviewArticleComponent
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.UiState
 import com.example.jetnews.ui.darkThemeColors
-import com.example.jetnews.ui.effect.fetchPost
 import com.example.jetnews.ui.home.BookmarkButton
-import com.example.jetnews.ui.home.isFavorite
-import com.example.jetnews.ui.home.toggleBookmark
-import com.example.jetnews.ui.navigateTo
+import com.example.jetnews.ui.previewPost
 
 @Composable
-fun ArticleScreen(postId: String, postsRepository: PostsRepository) {
-    val postsState = fetchPost(postId, postsRepository)
-    if (postsState is UiState.Success<Post>) {
-        ArticleScreen(postsState.data)
+fun ArticleScreen(component: ArticleComponent) {
+    val model by component.model.subscribeAsState()
+    val postState = model.post
+    if (postState is UiState.Success<Post>) {
+        ArticleScreen(
+            post = postState.data,
+            isFavorite = model.isFavorite,
+            onBack = component::onBackClicked,
+            onToggleFavorite = component::onFavoriteToggled
+        )
     }
 }
 
 @Composable
-private fun ArticleScreen(post: Post) {
+private fun ArticleScreen(
+    post: Post,
+    isFavorite: Boolean,
+    onBack: () -> Unit,
+    onToggleFavorite: () -> Unit
+) {
 
     var showDialog by remember { mutableStateOf(false) }
     if (showDialog) {
@@ -92,7 +98,7 @@ private fun ArticleScreen(post: Post) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navigateTo(Screen.Home) }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 }
@@ -102,21 +108,31 @@ private fun ArticleScreen(post: Post) {
             PostContent(post, Modifier.padding(innerPadding))
         },
         bottomBar = {
-            BottomBar(post) { showDialog = true }
+            BottomBar(
+                post = post,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                onUnimplementedAction = { showDialog = true }
+            )
         }
     )
 }
 
 @Composable
-private fun BottomBar(post: Post, onUnimplementedAction: () -> Unit) {
+private fun BottomBar(
+    post: Post,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onUnimplementedAction: () -> Unit
+) {
     val context = LocalContext.current
     Surface(elevation = 2.dp) {
         Box(modifier = Modifier.height(56.dp).fillMaxWidth()) {
             Row {
                 BottomBarAction(R.drawable.ic_favorite) { onUnimplementedAction() }
                 BookmarkButton(
-                    isBookmarked = isFavorite(postId = post.id),
-                    onBookmark = { toggleBookmark(postId = post.id) }
+                    isBookmarked = isFavorite,
+                    onBookmark = { onToggleFavorite() }
                 )
                 BottomBarAction(R.drawable.ic_share) { sharePost(post, context) }
                 Spacer(modifier = Modifier.weight(1f))
@@ -167,8 +183,7 @@ private fun sharePost(post: Post, context: Context) {
 @Composable
 fun PreviewArticle() {
     ThemedPreview {
-        val post = loadFakePost(post3.id)
-        ArticleScreen(post)
+        ArticleScreen(PreviewArticleComponent(previewPost(post3.id)))
     }
 }
 
@@ -176,16 +191,6 @@ fun PreviewArticle() {
 @Composable
 fun PreviewArticleDark() {
     ThemedPreview(darkThemeColors) {
-        val post = loadFakePost(post3.id)
-        ArticleScreen(post)
+        ArticleScreen(PreviewArticleComponent(previewPost(post3.id)))
     }
-}
-
-@Composable
-private fun loadFakePost(postId: String): Post {
-    var post: Post? = null
-    PreviewPostsRepository(LocalContext.current).getPost(postId) { result ->
-        post = result.successOr(null)
-    }
-    return post!!
 }

@@ -17,7 +17,6 @@
 package com.example.jetnews.ui
 
 import androidx.annotation.DrawableRes
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,50 +39,61 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.arkivanov.decompose.extensions.compose.stack.Children
+import com.arkivanov.decompose.extensions.compose.stack.animation.fade
+import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.example.jetnews.R
-import com.example.jetnews.data.AppContainer
-import com.example.jetnews.data.interests.InterestsRepository
-import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.ui.article.ArticleScreen
 import com.example.jetnews.ui.home.HomeScreen
 import com.example.jetnews.ui.interests.InterestsScreen
+import com.example.jetnews.ui.root.RootComponent
 
 @Composable
-fun JetnewsApp(appContainer: AppContainer) {
+fun JetnewsApp(root: RootComponent) {
 
     MaterialTheme(
         colors = lightThemeColors,
         typography = themeTypography
     ) {
-        AppContent(
-            interestsRepository = appContainer.interestsRepository,
-            postsRepository = appContainer.postsRepository
-        )
+        AppContent(root = root)
     }
 }
 
 @Composable
-private fun AppContent(
-    postsRepository: PostsRepository,
-    interestsRepository: InterestsRepository
-) {
-    Crossfade(JetnewsStatus.currentScreen) { screen ->
+private fun AppContent(root: RootComponent) {
+    // Fading between screens keeps the feel of the Crossfade used before the navigation stack
+    Children(stack = root.stack, animation = stackAnimation(fade())) { child ->
         Surface(color = MaterialTheme.colors.background) {
-            when (screen) {
-                is Screen.Home -> HomeScreen(postsRepository = postsRepository)
-                is Screen.Interests -> InterestsScreen(interestsRepository = interestsRepository)
-                is Screen.Article -> ArticleScreen(
-                    postId = screen.postId,
-                    postsRepository = postsRepository
+            when (val instance = child.instance) {
+                is RootComponent.Child.Home -> HomeScreen(
+                    component = instance.component,
+                    onHomeClicked = root::onHomeClicked,
+                    onInterestsClicked = root::onInterestsClicked
                 )
+                is RootComponent.Child.Interests -> InterestsScreen(
+                    component = instance.component,
+                    onHomeClicked = root::onHomeClicked,
+                    onInterestsClicked = root::onInterestsClicked
+                )
+                is RootComponent.Child.Article -> ArticleScreen(component = instance.component)
             }
         }
     }
 }
 
+/**
+ * The top-level destinations reachable from the drawer.
+ */
+enum class DrawerItem {
+    Home,
+    Interests
+}
+
 @Composable
 fun AppDrawer(
-    currentScreen: Screen,
+    currentItem: DrawerItem,
+    onHomeClicked: () -> Unit,
+    onInterestsClicked: () -> Unit,
     closeDrawer: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -93,9 +103,9 @@ fun AppDrawer(
         DrawerButton(
             icon = R.drawable.ic_home,
             label = "Home",
-            isSelected = currentScreen == Screen.Home,
+            isSelected = currentItem == DrawerItem.Home,
             action = {
-                navigateTo(Screen.Home)
+                onHomeClicked()
                 closeDrawer()
             }
         )
@@ -103,9 +113,9 @@ fun AppDrawer(
         DrawerButton(
             icon = R.drawable.ic_interests,
             label = "Interests",
-            isSelected = currentScreen == Screen.Interests,
+            isSelected = currentItem == DrawerItem.Interests,
             action = {
-                navigateTo(Screen.Interests)
+                onInterestsClicked()
                 closeDrawer()
             }
         )
@@ -186,7 +196,9 @@ private fun DrawerButton(
 fun PreviewJetnewsApp() {
     ThemedPreview {
         AppDrawer(
-            currentScreen = JetnewsStatus.currentScreen,
+            currentItem = DrawerItem.Home,
+            onHomeClicked = { },
+            onInterestsClicked = { },
             closeDrawer = { }
         )
     }
@@ -197,7 +209,9 @@ fun PreviewJetnewsApp() {
 fun PreviewJetnewsAppDark() {
     ThemedPreview(darkThemeColors) {
         AppDrawer(
-            currentScreen = JetnewsStatus.currentScreen,
+            currentItem = DrawerItem.Home,
+            onHomeClicked = { },
+            onInterestsClicked = { },
             closeDrawer = { }
         )
     }
