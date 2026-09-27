@@ -18,7 +18,8 @@ package com.example.jetnews.data.posts.impl
 
 import android.content.res.Resources
 import android.os.Handler
-import androidx.ui.graphics.imageFromResource
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
 import com.example.jetnews.data.Result
 import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.model.Post
@@ -45,8 +46,8 @@ class FakePostsRepository(
     private val postsWithResources: List<Post> by lazy {
         posts.map {
             it.copy(
-                image = imageFromResource(resources, it.imageId),
-                imageThumb = imageFromResource(resources, it.imageThumbId)
+                image = ImageBitmap.imageResource(resources, it.imageId),
+                imageThumb = ImageBitmap.imageResource(resources, it.imageThumbId)
             )
         }
     }

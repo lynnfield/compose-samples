@@ -16,50 +16,53 @@
 
 package com.example.jetnews.ui.article
 
-import androidx.compose.Composable
-import androidx.ui.core.ContentScale
-import androidx.ui.core.DensityAmbient
-import androidx.ui.core.Modifier
-import androidx.ui.core.clip
-import androidx.ui.foundation.Box
-import androidx.ui.foundation.Icon
-import androidx.ui.foundation.Image
-import androidx.ui.foundation.Text
-import androidx.ui.foundation.VerticalScroller
-import androidx.ui.foundation.contentColor
-import androidx.ui.foundation.shape.corner.CircleShape
-import androidx.ui.foundation.shape.corner.RoundedCornerShape
-import androidx.ui.graphics.Color
-import androidx.ui.layout.Column
-import androidx.ui.layout.Row
-import androidx.ui.layout.Spacer
-import androidx.ui.layout.fillMaxWidth
-import androidx.ui.layout.padding
-import androidx.ui.layout.preferredHeight
-import androidx.ui.layout.preferredHeightIn
-import androidx.ui.layout.preferredSize
-import androidx.ui.layout.preferredWidth
-import androidx.ui.material.ColorPalette
-import androidx.ui.material.EmphasisAmbient
-import androidx.ui.material.MaterialTheme
-import androidx.ui.material.ProvideEmphasis
-import androidx.ui.material.Surface
-import androidx.ui.material.Typography
-import androidx.ui.res.vectorResource
-import androidx.ui.text.AnnotatedString
-import androidx.ui.text.FirstBaseline
-import androidx.ui.text.ParagraphStyle
-import androidx.ui.text.SpanStyle
-import androidx.ui.text.TextStyle
-import androidx.ui.text.font.FontFamily
-import androidx.ui.text.font.FontStyle
-import androidx.ui.text.font.FontWeight
-import androidx.ui.text.style.TextDecoration
-import androidx.ui.text.style.TextIndent
-import androidx.ui.tooling.preview.Preview
-import androidx.ui.unit.Dp
-import androidx.ui.unit.dp
-import androidx.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Colors
+import androidx.compose.material.ContentAlpha
+import androidx.compose.material.Icon
+import androidx.compose.material.LocalContentAlpha
+import androidx.compose.material.LocalContentColor
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.material.Typography
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.ParagraphStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.jetnews.R
 import com.example.jetnews.data.posts.impl.post3
 import com.example.jetnews.model.Markup
@@ -74,27 +77,29 @@ import com.example.jetnews.ui.darkThemeColors
 private val defaultSpacerSize = 16.dp
 
 @Composable
-fun PostContent(post: Post, modifier: Modifier = Modifier.None) {
-    VerticalScroller {
-        Column(modifier = modifier.padding(start = defaultSpacerSize, end = defaultSpacerSize)) {
-            Spacer(Modifier.preferredHeight(defaultSpacerSize))
-            PostHeaderImage(post)
-            Text(text = post.title, style = MaterialTheme.typography.h4)
-            Spacer(Modifier.preferredHeight(8.dp))
-            post.subtitle?.let { subtitle ->
-                ProvideEmphasis(EmphasisAmbient.current.medium) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.body2.merge(TextStyle(lineHeight = 20.sp))
-                    )
-                }
-                Spacer(Modifier.preferredHeight(defaultSpacerSize))
+fun PostContent(post: Post, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(start = defaultSpacerSize, end = defaultSpacerSize)
+    ) {
+        Spacer(Modifier.height(defaultSpacerSize))
+        PostHeaderImage(post)
+        Text(text = post.title, style = MaterialTheme.typography.h4)
+        Spacer(Modifier.height(8.dp))
+        post.subtitle?.let { subtitle ->
+            CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.medium) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.body2.merge(TextStyle(lineHeight = 20.sp))
+                )
             }
-            PostMetadata(post.metadata)
-            Spacer(Modifier.preferredHeight(24.dp))
-            PostContents(post.paragraphs)
-            Spacer(Modifier.preferredHeight(48.dp))
+            Spacer(Modifier.height(defaultSpacerSize))
         }
+        PostMetadata(post.metadata)
+        Spacer(Modifier.height(24.dp))
+        PostContents(post.paragraphs)
+        Spacer(Modifier.height(48.dp))
     }
 }
 
@@ -102,11 +107,16 @@ fun PostContent(post: Post, modifier: Modifier = Modifier.None) {
 private fun PostHeaderImage(post: Post) {
     post.image?.let { image ->
         val imageModifier = Modifier
-            .preferredHeightIn(minHeight = 180.dp)
+            .heightIn(min = 180.dp)
             .fillMaxWidth()
             .clip(shape = RoundedCornerShape(4.dp))
-        Image(image, imageModifier, contentScale = ContentScale.Crop)
-        Spacer(Modifier.preferredHeight(defaultSpacerSize))
+        Image(
+            bitmap = image,
+            contentDescription = null,
+            modifier = imageModifier,
+            contentScale = ContentScale.Crop
+        )
+        Spacer(Modifier.height(defaultSpacerSize))
     }
 }
 
@@ -114,17 +124,17 @@ private fun PostHeaderImage(post: Post) {
 private fun PostMetadata(metadata: Metadata) {
     val typography = MaterialTheme.typography
     Row {
-        Icon(vectorResource(R.drawable.ic_account_circle_black))
-        Spacer(Modifier.preferredWidth(8.dp))
+        Icon(painterResource(R.drawable.ic_account_circle_black), contentDescription = null)
+        Spacer(Modifier.width(8.dp))
         Column {
-            ProvideEmphasis(EmphasisAmbient.current.high) {
+            CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
                 Text(
                     text = metadata.author.name,
                     style = typography.caption,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            ProvideEmphasis(EmphasisAmbient.current.medium) {
+            CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.medium) {
                 Text(
                     text = "${metadata.date} • ${metadata.readTimeMinutes} min read",
                     style = typography.caption
@@ -204,23 +214,22 @@ private fun BulletParagraph(
     paragraphStyle: ParagraphStyle
 ) {
     Row {
-        with(DensityAmbient.current) {
+        with(LocalDensity.current) {
             // this box is acting as a character, so it's sized with font scaling (sp)
             Box(
                 modifier = Modifier
-                        .preferredSize(8.sp.toDp(), 8.sp.toDp())
-                        .alignWithSiblings {
+                        .size(8.sp.toDp(), 8.sp.toDp())
+                        .alignBy {
                             // Add an alignment "baseline" 1sp below the bottom of the circle
-                            9.sp.toIntPx()
-                        },
-                backgroundColor = contentColor(),
-                shape = CircleShape
+                            9.sp.roundToPx()
+                        }
+                        .background(LocalContentColor.current, CircleShape)
             )
         }
         Text(
                 modifier = Modifier
                         .weight(1f)
-                        .alignWithSiblings(FirstBaseline),
+                        .alignBy(FirstBaseline),
                 text = text,
                 style = textStyle.merge(paragraphStyle)
         )
@@ -275,7 +284,7 @@ private fun paragraphToAnnotatedString(
     typography: Typography,
     codeBlockBackground: Color
 ): AnnotatedString {
-    val styles: List<AnnotatedString.Item<SpanStyle>> = paragraph.markups
+    val styles: List<AnnotatedString.Range<SpanStyle>> = paragraph.markups
         .map { it.toAnnotatedStringItem(typography, codeBlockBackground) }
     return AnnotatedString(text = paragraph.text, spanStyles = styles)
 }
@@ -283,31 +292,31 @@ private fun paragraphToAnnotatedString(
 fun Markup.toAnnotatedStringItem(
     typography: Typography,
     codeBlockBackground: Color
-): AnnotatedString.Item<SpanStyle> {
+): AnnotatedString.Range<SpanStyle> {
     return when (this.type) {
         MarkupType.Italic -> {
-            AnnotatedString.Item(
+            AnnotatedString.Range(
                 typography.body1.copy(fontStyle = FontStyle.Italic).toSpanStyle(),
                 start,
                 end
             )
         }
         MarkupType.Link -> {
-            AnnotatedString.Item(
+            AnnotatedString.Range(
                 typography.body1.copy(textDecoration = TextDecoration.Underline).toSpanStyle(),
                 start,
                 end
             )
         }
         MarkupType.Bold -> {
-            AnnotatedString.Item(
+            AnnotatedString.Range(
                 typography.body1.copy(fontWeight = FontWeight.Bold).toSpanStyle(),
                 start,
                 end
             )
         }
         MarkupType.Code -> {
-            AnnotatedString.Item(
+            AnnotatedString.Range(
                 typography.body1
                     .copy(
                         background = codeBlockBackground,
@@ -320,7 +329,7 @@ fun Markup.toAnnotatedStringItem(
     }
 }
 
-private val ColorPalette.codeBlockBackground: Color
+private val Colors.codeBlockBackground: Color
     get() = onSurface.copy(alpha = .15f)
 
 @Preview("Post content")

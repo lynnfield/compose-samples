@@ -16,35 +16,38 @@
 
 package com.example.jetnews.ui.home
 
-import androidx.compose.Composable
-import androidx.compose.remember
-import androidx.ui.animation.Crossfade
-import androidx.ui.core.Alignment
-import androidx.ui.core.ContextAmbient
-import androidx.ui.core.Modifier
-import androidx.ui.foundation.Clickable
-import androidx.ui.foundation.HorizontalScroller
-import androidx.ui.foundation.Icon
-import androidx.ui.foundation.Text
-import androidx.ui.foundation.VerticalScroller
-import androidx.ui.layout.Column
-import androidx.ui.layout.Row
-import androidx.ui.layout.fillMaxSize
-import androidx.ui.layout.padding
-import androidx.ui.layout.wrapContentSize
-import androidx.ui.material.Divider
-import androidx.ui.material.DrawerState
-import androidx.ui.material.EmphasisAmbient
-import androidx.ui.material.IconButton
-import androidx.ui.material.MaterialTheme
-import androidx.ui.material.ProvideEmphasis
-import androidx.ui.material.Scaffold
-import androidx.ui.material.ScaffoldState
-import androidx.ui.material.TopAppBar
-import androidx.ui.material.ripple.ripple
-import androidx.ui.res.vectorResource
-import androidx.ui.tooling.preview.Preview
-import androidx.ui.unit.dp
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ContentAlpha
+import androidx.compose.material.Divider
+import androidx.compose.material.DrawerValue
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.LocalContentAlpha
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.ScaffoldState
+import androidx.compose.material.Text
+import androidx.compose.material.TopAppBar
+import androidx.compose.material.rememberDrawerState
+import androidx.compose.material.rememberScaffoldState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.data.posts.impl.PreviewPostsRepository
@@ -58,6 +61,7 @@ import com.example.jetnews.ui.darkThemeColors
 import com.example.jetnews.ui.navigateTo
 import com.example.jetnews.ui.previewDataFrom
 import com.example.jetnews.ui.uiStateFrom
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(postsRepository: PostsRepository) {
@@ -67,37 +71,41 @@ fun HomeScreen(postsRepository: PostsRepository) {
 
 @Composable
 fun HomeScreenScaffold(
-    scaffoldState: ScaffoldState = remember { ScaffoldState() },
+    scaffoldState: ScaffoldState = rememberScaffoldState(),
     postsState: UiState<List<Post>>
 ) {
+    val coroutineScope = rememberCoroutineScope()
     Scaffold(
         scaffoldState = scaffoldState,
         drawerContent = {
             AppDrawer(
                 currentScreen = Screen.Home,
-                closeDrawer = { scaffoldState.drawerState = DrawerState.Closed }
+                closeDrawer = { coroutineScope.launch { scaffoldState.drawerState.close() } }
             )
         },
-        topAppBar = {
+        topBar = {
             TopAppBar(
                 title = { Text(text = "Jetnews") },
                 navigationIcon = {
-                    IconButton(onClick = { scaffoldState.drawerState = DrawerState.Opened }) {
-                        Icon(vectorResource(R.drawable.ic_jetnews_logo))
+                    IconButton(
+                        onClick = { coroutineScope.launch { scaffoldState.drawerState.open() } }
+                    ) {
+                        Icon(painterResource(R.drawable.ic_jetnews_logo), contentDescription = null)
                     }
                 }
             )
         },
-        bodyContent = { modifier ->
-            Crossfade(current = postsState) { uiState ->
+        content = { innerPadding ->
+            val modifier = Modifier.padding(innerPadding)
+            Crossfade(targetState = postsState) { uiState ->
                 when (uiState) {
                     is UiState.Success -> HomeScreenBody(
                         modifier = modifier,
-                        posts = (postsState as UiState.Success<List<Post>>).data
+                        posts = uiState.data
                     )
                     is UiState.Loading -> {
                         Text(
-                            modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center),
+                            modifier = modifier.fillMaxSize().wrapContentSize(Alignment.Center),
                             text = "Loading"
                         )
                     }
@@ -113,35 +121,34 @@ fun HomeScreenScaffold(
 @Composable
 private fun HomeScreenBody(
     posts: List<Post>,
-    modifier: Modifier = Modifier.None
+    modifier: Modifier = Modifier
 ) {
     val postTop = posts[3]
     val postsSimple = posts.subList(0, 2)
     val postsPopular = posts.subList(2, 7)
     val postsHistory = posts.subList(7, 10)
 
-    VerticalScroller {
-        Column(modifier) {
-            HomeScreenTopSection(postTop)
-            HomeScreenSimpleSection(postsSimple)
-            HomeScreenPopularSection(postsPopular)
-            HomeScreenHistorySection(postsHistory)
-        }
+    Column(modifier.verticalScroll(rememberScrollState())) {
+        HomeScreenTopSection(postTop)
+        HomeScreenSimpleSection(postsSimple)
+        HomeScreenPopularSection(postsPopular)
+        HomeScreenHistorySection(postsHistory)
     }
 }
 
 @Composable
 private fun HomeScreenTopSection(post: Post) {
-    ProvideEmphasis(EmphasisAmbient.current.high) {
+    CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
         Text(
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp),
             text = "Top stories for you",
             style = MaterialTheme.typography.subtitle1
         )
     }
-    Clickable(modifier = Modifier.ripple(), onClick = { navigateTo(Screen.Article(post.id)) }) {
-        PostCardTop(post = post)
-    }
+    PostCardTop(
+        post = post,
+        modifier = Modifier.clickable(onClick = { navigateTo(Screen.Article(post.id)) })
+    )
     HomeScreenDivider()
 }
 
@@ -158,18 +165,20 @@ private fun HomeScreenSimpleSection(posts: List<Post>) {
 @Composable
 private fun HomeScreenPopularSection(posts: List<Post>) {
     Column {
-        ProvideEmphasis(EmphasisAmbient.current.high) {
+        CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
             Text(
                 modifier = Modifier.padding(16.dp),
                 text = "Popular on Jetnews",
                 style = MaterialTheme.typography.subtitle1
             )
         }
-        HorizontalScroller {
-            Row(modifier = Modifier.padding(end = 16.dp, bottom = 16.dp)) {
-                posts.forEach { post ->
-                    PostCardPopular(post, Modifier.padding(start = 16.dp))
-                }
+        Row(
+            modifier = Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(end = 16.dp, bottom = 16.dp)
+        ) {
+            posts.forEach { post ->
+                PostCardPopular(post, Modifier.padding(start = 16.dp))
             }
         }
         HomeScreenDivider()
@@ -208,7 +217,7 @@ fun PreviewHomeScreenBody() {
 private fun PreviewDrawerOpen() {
     ThemedPreview {
         HomeScreenScaffold(
-            scaffoldState = ScaffoldState(drawerState = DrawerState.Opened),
+            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open)),
             postsState = UiState.Success(posts)
         )
     }
@@ -228,7 +237,7 @@ fun PreviewHomeScreenBodyDark() {
 private fun PreviewDrawerOpenDark() {
     ThemedPreview(darkThemeColors) {
         HomeScreenScaffold(
-            scaffoldState = ScaffoldState(drawerState = DrawerState.Opened),
+            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open)),
             postsState = UiState.Success(posts)
         )
     }
@@ -236,5 +245,5 @@ private fun PreviewDrawerOpenDark() {
 
 @Composable
 private fun loadFakePosts(): List<Post> {
-    return previewDataFrom(PreviewPostsRepository(ContextAmbient.current)::getPosts)
+    return previewDataFrom(PreviewPostsRepository(LocalContext.current)::getPosts)
 }

@@ -19,34 +19,35 @@ package com.example.jetnews.ui.article
 import android.content.Context
 import android.content.Intent
 import androidx.annotation.DrawableRes
-import androidx.compose.Composable
-import androidx.compose.getValue
-import androidx.compose.setValue
-import androidx.compose.state
-import androidx.ui.core.ContextAmbient
-import androidx.ui.core.Modifier
-import androidx.ui.foundation.Box
-import androidx.ui.foundation.Icon
-import androidx.ui.foundation.Text
-import androidx.ui.foundation.contentColor
-import androidx.ui.layout.Row
-import androidx.ui.layout.Spacer
-import androidx.ui.layout.fillMaxSize
-import androidx.ui.layout.padding
-import androidx.ui.layout.preferredHeight
-import androidx.ui.layout.preferredSize
-import androidx.ui.material.AlertDialog
-import androidx.ui.material.IconButton
-import androidx.ui.material.MaterialTheme
-import androidx.ui.material.Scaffold
-import androidx.ui.material.Surface
-import androidx.ui.material.TextButton
-import androidx.ui.material.TopAppBar
-import androidx.ui.material.icons.Icons
-import androidx.ui.material.icons.filled.ArrowBack
-import androidx.ui.res.vectorResource
-import androidx.ui.tooling.preview.Preview
-import androidx.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.AlertDialog
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.LocalContentColor
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
+import androidx.compose.material.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.data.posts.impl.PreviewPostsRepository
@@ -74,32 +75,33 @@ fun ArticleScreen(postId: String, postsRepository: PostsRepository) {
 @Composable
 private fun ArticleScreen(post: Post) {
 
-    var showDialog by state { false }
+    var showDialog by remember { mutableStateOf(false) }
     if (showDialog) {
         FunctionalityNotAvailablePopup { showDialog = false }
     }
 
     Scaffold(
-        topAppBar = {
+        topBar = {
             TopAppBar(
                 title = {
                     Text(
                         text = "Published in: ${post.publication?.name}",
-                        // FIXME(b/143626708): this contentColor() is a bug workaround
-                        style = MaterialTheme.typography.subtitle2.copy(color = contentColor())
+                        style = MaterialTheme.typography.subtitle2.copy(
+                            color = LocalContentColor.current
+                        )
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navigateTo(Screen.Home) }) {
-                        Icon(Icons.Filled.ArrowBack)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 }
             )
         },
-        bodyContent = { modifier ->
-            PostContent(post, modifier)
+        content = { innerPadding ->
+            PostContent(post, Modifier.padding(innerPadding))
         },
-        bottomAppBar = {
+        bottomBar = {
             BottomBar(post) { showDialog = true }
         }
     )
@@ -107,9 +109,9 @@ private fun ArticleScreen(post: Post) {
 
 @Composable
 private fun BottomBar(post: Post, onUnimplementedAction: () -> Unit) {
-    val context = ContextAmbient.current
+    val context = LocalContext.current
     Surface(elevation = 2.dp) {
-        Box(modifier = Modifier.preferredHeight(56.dp).fillMaxSize()) {
+        Box(modifier = Modifier.height(56.dp).fillMaxWidth()) {
             Row {
                 BottomBarAction(R.drawable.ic_favorite) { onUnimplementedAction() }
                 BookmarkButton(
@@ -129,18 +131,18 @@ private fun BottomBarAction(
     @DrawableRes id: Int,
     onClick: () -> Unit
 ) {
-    IconButton(onClick = onClick, modifier = Modifier.padding(12.dp).preferredSize(24.dp, 24.dp)) {
-        Icon(vectorResource(id))
+    IconButton(onClick = onClick, modifier = Modifier.padding(12.dp).size(24.dp, 24.dp)) {
+        Icon(painterResource(id), contentDescription = null)
     }
 }
 
 @Composable
 private fun FunctionalityNotAvailablePopup(onDismiss: () -> Unit) {
     AlertDialog(
-        onCloseRequest = onDismiss,
+        onDismissRequest = onDismiss,
         text = {
             Text(
-                text = "Functionality not available \uD83D\uDE48",
+                text = "Functionality not available 🙈",
                 style = MaterialTheme.typography.body2
             )
         },
@@ -182,7 +184,7 @@ fun PreviewArticleDark() {
 @Composable
 private fun loadFakePost(postId: String): Post {
     var post: Post? = null
-    PreviewPostsRepository(ContextAmbient.current).getPost(postId) { result ->
+    PreviewPostsRepository(LocalContext.current).getPost(postId) { result ->
         post = result.successOr(null)
     }
     return post!!

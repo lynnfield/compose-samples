@@ -16,26 +16,27 @@
 
 package com.example.jetnews.ui.home
 
-import androidx.compose.Composable
-import androidx.ui.core.ContentScale
-import androidx.ui.core.ContextAmbient
-import androidx.ui.core.Modifier
-import androidx.ui.core.clip
-import androidx.ui.foundation.Image
-import androidx.ui.foundation.Text
-import androidx.ui.foundation.shape.corner.RoundedCornerShape
-import androidx.ui.layout.Column
-import androidx.ui.layout.Spacer
-import androidx.ui.layout.fillMaxWidth
-import androidx.ui.layout.padding
-import androidx.ui.layout.preferredHeight
-import androidx.ui.layout.preferredHeightIn
-import androidx.ui.material.ColorPalette
-import androidx.ui.material.EmphasisAmbient
-import androidx.ui.material.MaterialTheme
-import androidx.ui.material.ProvideEmphasis
-import androidx.ui.tooling.preview.Preview
-import androidx.ui.unit.dp
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Colors
+import androidx.compose.material.ContentAlpha
+import androidx.compose.material.LocalContentAlpha
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.jetnews.data.posts.impl.getPostsWithImagesLoaded
 import com.example.jetnews.data.posts.impl.post2
 import com.example.jetnews.data.posts.impl.posts
@@ -45,21 +46,25 @@ import com.example.jetnews.ui.darkThemeColors
 import com.example.jetnews.ui.lightThemeColors
 
 @Composable
-fun PostCardTop(post: Post) {
+fun PostCardTop(post: Post, modifier: Modifier = Modifier) {
 // TUTORIAL CONTENT STARTS HERE
     val typography = MaterialTheme.typography
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+    Column(modifier = modifier.fillMaxWidth().padding(16.dp)) {
         post.image?.let { image ->
             val imageModifier = Modifier
-                .preferredHeightIn(minHeight = 180.dp)
+                .heightIn(min = 180.dp)
                 .fillMaxWidth()
                 .clip(shape = RoundedCornerShape(4.dp))
-            Image(image, modifier = imageModifier, contentScale = ContentScale.Crop)
+            Image(
+                bitmap = image,
+                contentDescription = null,
+                modifier = imageModifier,
+                contentScale = ContentScale.Crop
+            )
         }
-        Spacer(Modifier.preferredHeight(16.dp))
+        Spacer(Modifier.height(16.dp))
 
-        val emphasisLevels = EmphasisAmbient.current
-        ProvideEmphasis(emphasisLevels.high) {
+        CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
             Text(
                 text = post.title,
                 style = typography.h6
@@ -69,7 +74,7 @@ fun PostCardTop(post: Post) {
                 style = typography.body2
             )
         }
-        ProvideEmphasis(emphasisLevels.medium) {
+        CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.medium) {
             Text(
                 text = "${post.metadata.date} - ${post.metadata.readTimeMinutes} min read",
                 style = typography.body2
@@ -101,9 +106,9 @@ fun TutorialPreviewFontscale() {
 
 @Composable
 fun TutorialPreviewTemplate(
-    colors: ColorPalette = lightThemeColors
+    colors: Colors = lightThemeColors
 ) {
-    val context = ContextAmbient.current
+    val context = LocalContext.current
     val previewPosts = getPostsWithImagesLoaded(posts.subList(1, 2), context.resources)
     val post = previewPosts[0]
 

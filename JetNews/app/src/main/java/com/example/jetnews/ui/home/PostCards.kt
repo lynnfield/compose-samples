@@ -16,27 +16,28 @@
 
 package com.example.jetnews.ui.home
 
-import androidx.compose.Composable
-import androidx.compose.state
-import androidx.ui.core.Modifier
-import androidx.ui.foundation.Clickable
-import androidx.ui.foundation.Icon
-import androidx.ui.foundation.Image
-import androidx.ui.foundation.Text
-import androidx.ui.layout.Column
-import androidx.ui.layout.Row
-import androidx.ui.layout.fillMaxSize
-import androidx.ui.layout.padding
-import androidx.ui.layout.preferredSize
-import androidx.ui.material.EmphasisAmbient
-import androidx.ui.material.IconToggleButton
-import androidx.ui.material.MaterialTheme
-import androidx.ui.material.ProvideEmphasis
-import androidx.ui.material.ripple.ripple
-import androidx.ui.res.imageResource
-import androidx.ui.res.vectorResource
-import androidx.ui.tooling.preview.Preview
-import androidx.ui.unit.dp
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.ContentAlpha
+import androidx.compose.material.Icon
+import androidx.compose.material.IconToggleButton
+import androidx.compose.material.LocalContentAlpha
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.posts.impl.post3
 import com.example.jetnews.model.Post
@@ -50,7 +51,7 @@ import com.example.jetnews.ui.navigateTo
 fun AuthorAndReadTime(post: Post) {
     Row {
         val textStyle = MaterialTheme.typography.body2
-        ProvideEmphasis(EmphasisAmbient.current.medium) {
+        CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.medium) {
             Text(text = post.metadata.author.name, style = textStyle)
             Text(text = " - ${post.metadata.readTimeMinutes} min read", style = textStyle)
         }
@@ -58,62 +59,60 @@ fun AuthorAndReadTime(post: Post) {
 }
 
 @Composable
-fun PostImage(post: Post, modifier: Modifier = Modifier.None) {
-    val image = post.imageThumb ?: imageResource(R.drawable.placeholder_1_1)
-    Image(image, modifier.preferredSize(40.dp, 40.dp))
+fun PostImage(post: Post, modifier: Modifier = Modifier) {
+    val image = post.imageThumb?.let { BitmapPainter(it) }
+        ?: painterResource(R.drawable.placeholder_1_1)
+    Image(image, contentDescription = null, modifier = modifier.size(40.dp, 40.dp))
 }
 
 @Composable
 fun PostTitle(post: Post) {
-    ProvideEmphasis(EmphasisAmbient.current.high) {
+    CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
         Text(post.title, style = MaterialTheme.typography.subtitle1)
     }
 }
 
 @Composable
 fun PostCardSimple(post: Post) {
-    Clickable(
-        modifier = Modifier.ripple(),
-        onClick = { navigateTo(Screen.Article(post.id)) }
+    Row(
+        modifier = Modifier
+            .clickable(onClick = { navigateTo(Screen.Article(post.id)) })
+            .padding(16.dp)
     ) {
-        Row(modifier = Modifier.padding(16.dp)) {
-            PostImage(post, Modifier.padding(end = 16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                PostTitle(post)
-                AuthorAndReadTime(post)
-            }
-            BookmarkButton(
-                isBookmarked = isFavorite(postId = post.id),
-                onBookmark = { toggleBookmark(postId = post.id) }
-            )
+        PostImage(post, Modifier.padding(end = 16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            PostTitle(post)
+            AuthorAndReadTime(post)
         }
+        BookmarkButton(
+            isBookmarked = isFavorite(postId = post.id),
+            onBookmark = { toggleBookmark(postId = post.id) }
+        )
     }
 }
 
 @Composable
 fun PostCardHistory(post: Post) {
-    Clickable(
-        modifier = Modifier.ripple(),
-        onClick = { navigateTo(Screen.Article(post.id)) }
+    Row(
+        Modifier
+            .clickable(onClick = { navigateTo(Screen.Article(post.id)) })
+            .padding(16.dp)
     ) {
-        Row(Modifier.padding(16.dp)) {
-            PostImage(
-                post,
-                Modifier.padding(end = 16.dp)
-            )
-            Column(Modifier.weight(1f)) {
-                ProvideEmphasis(EmphasisAmbient.current.medium) {
-                    Text(
-                        text = "BASED ON YOUR HISTORY",
-                        style = MaterialTheme.typography.overline
-                    )
-                }
-                PostTitle(post = post)
-                AuthorAndReadTime(post)
+        PostImage(
+            post,
+            Modifier.padding(end = 16.dp)
+        )
+        Column(Modifier.weight(1f)) {
+            CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.medium) {
+                Text(
+                    text = "BASED ON YOUR HISTORY",
+                    style = MaterialTheme.typography.overline
+                )
             }
-            Modifier.padding(top = 8.dp, bottom = 8.dp)
-            Image(vectorResource(R.drawable.ic_more))
+            PostTitle(post = post)
+            AuthorAndReadTime(post)
         }
+        Image(painterResource(R.drawable.ic_more), contentDescription = null)
     }
 }
 
@@ -124,9 +123,17 @@ fun BookmarkButton(
 ) {
     IconToggleButton(checked = isBookmarked, onCheckedChange = onBookmark) {
         if (isBookmarked) {
-            Icon(vectorResource(R.drawable.ic_bookmarked), Modifier.fillMaxSize())
+            Icon(
+                painterResource(R.drawable.ic_bookmarked),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
         } else {
-            Icon(vectorResource(R.drawable.ic_bookmark), Modifier.fillMaxSize())
+            Icon(
+                painterResource(R.drawable.ic_bookmark),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
@@ -134,7 +141,7 @@ fun BookmarkButton(
 @Preview("Bookmark Button")
 @Composable
 fun PreviewBookmarkButton() {
-    val (bookmarked, updateBookmarked) = state { false }
+    val (bookmarked, updateBookmarked) = remember { mutableStateOf(false) }
     BookmarkButton(isBookmarked = bookmarked, onBookmark = updateBookmarked)
 }
 

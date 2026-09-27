@@ -17,13 +17,12 @@
 package com.example.jetnews
 
 import android.content.Context
-import androidx.compose.Composable
-import androidx.ui.material.MaterialTheme
-import androidx.ui.material.Surface
-import androidx.ui.test.ComposeTestRule
-import androidx.ui.test.SemanticsNodeInteraction
-import androidx.ui.test.findAll
-import androidx.ui.test.hasSubstring
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import com.example.jetnews.data.AppContainer
 import com.example.jetnews.ui.JetnewsApp
 import com.example.jetnews.ui.JetnewsStatus
@@ -32,15 +31,15 @@ import com.example.jetnews.ui.Screen
 /**
  * Launches the app from a test context
  */
-fun ComposeTestRule.launchJetNewsApp(context: Context) {
+fun ComposeContentTestRule.launchJetNewsApp(context: Context) {
+    JetnewsStatus.resetState()
     setContent {
-        JetnewsStatus.resetState()
         JetnewsApp(AppContainer(context))
     }
 }
 
 /**
- * Resets the state of the app. Needs to be executed in Compose code (within a frame)
+ * Resets the state of the app
  */
 fun JetnewsStatus.resetState() {
     currentScreen = Screen.Home
@@ -51,7 +50,7 @@ fun JetnewsStatus.resetState() {
 /**
  * Helper method that can be used to test Jetnews UI Composables in isolation
  */
-fun ComposeTestRule.setMaterialContent(children: @Composable() () -> Unit) {
+fun ComposeContentTestRule.setMaterialContent(children: @Composable() () -> Unit) {
     setContent {
         MaterialTheme {
             Surface {
@@ -61,8 +60,10 @@ fun ComposeTestRule.setMaterialContent(children: @Composable() () -> Unit) {
     }
 }
 
-fun findAllBySubstring(text: String, ignoreCase: Boolean = false): List<SemanticsNodeInteraction> {
-    return findAll(
-        hasSubstring(text, ignoreCase)
-    )
+fun ComposeContentTestRule.findAllBySubstring(
+    text: String,
+    ignoreCase: Boolean = false
+): List<SemanticsNodeInteraction> {
+    val nodes = onAllNodes(hasText(text, substring = true, ignoreCase = ignoreCase))
+    return List(nodes.fetchSemanticsNodes().size) { index -> nodes[index] }
 }

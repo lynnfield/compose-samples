@@ -16,37 +16,39 @@
 
 package com.example.jetnews.ui.interests
 
-import androidx.compose.Composable
-import androidx.compose.remember
-import androidx.compose.state
-import androidx.ui.core.Modifier
-import androidx.ui.core.clip
-import androidx.ui.foundation.Box
-import androidx.ui.foundation.Icon
-import androidx.ui.foundation.Image
-import androidx.ui.foundation.Text
-import androidx.ui.foundation.VerticalScroller
-import androidx.ui.foundation.selection.Toggleable
-import androidx.ui.foundation.shape.corner.RoundedCornerShape
-import androidx.ui.layout.Column
-import androidx.ui.layout.Row
-import androidx.ui.layout.RowAlign
-import androidx.ui.layout.padding
-import androidx.ui.layout.preferredSize
-import androidx.ui.material.Divider
-import androidx.ui.material.DrawerState
-import androidx.ui.material.IconButton
-import androidx.ui.material.MaterialTheme
-import androidx.ui.material.Scaffold
-import androidx.ui.material.ScaffoldState
-import androidx.ui.material.Tab
-import androidx.ui.material.TabRow
-import androidx.ui.material.TopAppBar
-import androidx.ui.material.ripple.ripple
-import androidx.ui.res.imageResource
-import androidx.ui.res.vectorResource
-import androidx.ui.tooling.preview.Preview
-import androidx.ui.unit.dp
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Divider
+import androidx.compose.material.DrawerValue
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.ScaffoldState
+import androidx.compose.material.Tab
+import androidx.compose.material.TabRow
+import androidx.compose.material.Text
+import androidx.compose.material.TopAppBar
+import androidx.compose.material.rememberDrawerState
+import androidx.compose.material.rememberScaffoldState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.interests.InterestsRepository
 import com.example.jetnews.data.interests.impl.FakeInterestsRepository
@@ -58,6 +60,7 @@ import com.example.jetnews.ui.UiState
 import com.example.jetnews.ui.darkThemeColors
 import com.example.jetnews.ui.previewDataFrom
 import com.example.jetnews.ui.uiStateFrom
+import kotlinx.coroutines.launch
 
 private enum class Sections(val title: String) {
     Topics("Topics"),
@@ -67,30 +70,38 @@ private enum class Sections(val title: String) {
 
 @Composable
 fun InterestsScreen(
-    scaffoldState: ScaffoldState = remember { ScaffoldState() },
+    scaffoldState: ScaffoldState = rememberScaffoldState(),
     interestsRepository: InterestsRepository
 ) {
+    val coroutineScope = rememberCoroutineScope()
     Scaffold(
         scaffoldState = scaffoldState,
         drawerContent = {
             AppDrawer(
                 currentScreen = Screen.Interests,
-                closeDrawer = { scaffoldState.drawerState = DrawerState.Closed }
+                closeDrawer = { coroutineScope.launch { scaffoldState.drawerState.close() } }
             )
         },
-        topAppBar = {
+        topBar = {
             TopAppBar(
                 title = { Text("Interests") },
                 navigationIcon = {
-                    IconButton(onClick = { scaffoldState.drawerState = DrawerState.Opened }) {
-                        Icon(vectorResource(R.drawable.ic_jetnews_logo))
+                    IconButton(
+                        onClick = { coroutineScope.launch { scaffoldState.drawerState.open() } }
+                    ) {
+                        Icon(painterResource(R.drawable.ic_jetnews_logo), contentDescription = null)
                     }
                 }
             )
         },
-        bodyContent = {
-            val (currentSection, updateSection) = state { Sections.Topics }
-            InterestsScreenBody(currentSection, updateSection, interestsRepository)
+        content = { innerPadding ->
+            val (currentSection, updateSection) = remember { mutableStateOf(Sections.Topics) }
+            InterestsScreenBody(
+                currentSection,
+                updateSection,
+                interestsRepository,
+                Modifier.padding(innerPadding)
+            )
         }
     )
 }
@@ -99,20 +110,22 @@ fun InterestsScreen(
 private fun InterestsScreenBody(
     currentSection: Sections,
     updateSection: (Sections) -> Unit,
-    interestsRepository: InterestsRepository
+    interestsRepository: InterestsRepository,
+    modifier: Modifier = Modifier
 ) {
     val sectionTitles = Sections.values().map { it.title }
 
-    Column {
-        TabRow(
-            items = sectionTitles, selectedIndex = currentSection.ordinal
-        ) { index, title ->
-            Tab(
-                text = { Text(title) },
-                selected = currentSection.ordinal == index,
-                onSelected = {
-                    updateSection(Sections.values()[index])
-                })
+    Column(modifier) {
+        TabRow(selectedTabIndex = currentSection.ordinal) {
+            sectionTitles.forEachIndexed { index, title ->
+                Tab(
+                    text = { Text(title) },
+                    selected = currentSection.ordinal == index,
+                    onClick = {
+                        updateSection(Sections.values()[index])
+                    }
+                )
+            }
         }
         Box(modifier = Modifier.weight(1f)) {
             when (currentSection) {
@@ -156,19 +169,17 @@ private fun PublicationsTab(publications: List<String>) {
 
 @Composable
 private fun TabWithTopics(tabName: String, topics: List<String>) {
-    VerticalScroller {
-        Column(modifier = Modifier.padding(top = 16.dp)) {
-            topics.forEach { topic ->
-                TopicItem(
-                    getTopicKey(
-                        tabName,
-                        "- ",
-                        topic
-                    ),
+    Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(top = 16.dp)) {
+        topics.forEach { topic ->
+            TopicItem(
+                getTopicKey(
+                    tabName,
+                    "- ",
                     topic
-                )
-                TopicDivider()
-            }
+                ),
+                topic
+            )
+            TopicDivider()
         }
     }
 }
@@ -178,24 +189,22 @@ private fun TabWithSections(
     tabName: String,
     sections: Map<String, List<String>>
 ) {
-    VerticalScroller {
-        Column {
-            sections.forEach { (section, topics) ->
-                Text(
-                    text = section,
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.subtitle1
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        sections.forEach { (section, topics) ->
+            Text(
+                text = section,
+                modifier = Modifier.padding(16.dp),
+                style = MaterialTheme.typography.subtitle1
+            )
+            topics.forEach { topic ->
+                TopicItem(
+                    getTopicKey(
+                        tabName,
+                        section,
+                        topic
+                    ), topic
                 )
-                topics.forEach { topic ->
-                    TopicItem(
-                        getTopicKey(
-                            tabName,
-                            section,
-                            topic
-                        ), topic
-                    )
-                    TopicDivider()
-                }
+                TopicDivider()
             }
         }
     }
@@ -203,39 +212,39 @@ private fun TabWithSections(
 
 @Composable
 private fun TopicItem(topicKey: String, itemTitle: String) {
-    val image = imageResource(R.drawable.placeholder_1_1)
+    val image = painterResource(R.drawable.placeholder_1_1)
     val selected = isTopicSelected(topicKey)
     val onSelected = { it: Boolean ->
         selectTopic(topicKey, it)
     }
-    Toggleable(
-        value = selected,
-        onValueChange = onSelected,
-        modifier = Modifier.ripple()
+    Row(
+        modifier = Modifier
+            .toggleable(
+                value = selected,
+                onValueChange = onSelected
+            )
+            .padding(start = 16.dp, end = 16.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp)
-        ) {
-            Image(
-                image,
-                Modifier
-                    .gravity(RowAlign.Center)
-                    .preferredSize(56.dp, 56.dp)
-                    .clip(RoundedCornerShape(4.dp))
-            )
-            Text(
-                text = itemTitle,
-                modifier = Modifier
-                    .weight(1f)
-                    .gravity(RowAlign.Center)
-                    .padding(16.dp),
-                style = MaterialTheme.typography.subtitle1
-            )
-            SelectTopicButton(
-                modifier = Modifier.gravity(RowAlign.Center),
-                selected = selected
-            )
-        }
+        Image(
+            image,
+            contentDescription = null,
+            modifier = Modifier
+                .align(Alignment.CenterVertically)
+                .size(56.dp, 56.dp)
+                .clip(RoundedCornerShape(4.dp))
+        )
+        Text(
+            text = itemTitle,
+            modifier = Modifier
+                .weight(1f)
+                .align(Alignment.CenterVertically)
+                .padding(16.dp),
+            style = MaterialTheme.typography.subtitle1
+        )
+        SelectTopicButton(
+            modifier = Modifier.align(Alignment.CenterVertically),
+            selected = selected
+        )
     }
 }
 
@@ -272,7 +281,7 @@ fun PreviewInterestsScreen() {
 fun PreviewInterestsScreenDark() {
     ThemedPreview(darkThemeColors) {
         InterestsScreen(
-            scaffoldState = ScaffoldState(drawerState = DrawerState.Opened),
+            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open)),
             interestsRepository = FakeInterestsRepository()
         )
     }
@@ -283,7 +292,7 @@ fun PreviewInterestsScreenDark() {
 private fun PreviewDrawerOpen() {
     ThemedPreview {
         InterestsScreen(
-            scaffoldState = ScaffoldState(drawerState = DrawerState.Opened),
+            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open)),
             interestsRepository = FakeInterestsRepository()
         )
     }
@@ -294,7 +303,7 @@ private fun PreviewDrawerOpen() {
 private fun PreviewDrawerOpenDark() {
     ThemedPreview(darkThemeColors) {
         InterestsScreen(
-            scaffoldState = ScaffoldState(drawerState = DrawerState.Opened),
+            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open)),
             interestsRepository = FakeInterestsRepository()
         )
     }
