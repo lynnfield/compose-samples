@@ -16,15 +16,7 @@
 
 package com.example.jetnews.ui
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.example.jetnews.data.Result
-
-typealias RepositoryCall<T> = ((Result<T>) -> Unit) -> Unit
 
 sealed class UiState<out T> {
     object Loading : UiState<Nothing>()
@@ -35,45 +27,4 @@ sealed class UiState<out T> {
 fun <T> Result<T>.toUiState(): UiState<T> = when (this) {
     is Result.Success -> UiState.Success(data)
     is Result.Error -> UiState.Error(exception)
-}
-
-/**
- * UiState factory that updates its internal state with the [com.example.jetnews.data.Result]
- * of a repository called as a parameter.
- *
- * To load asynchronous data, effects are better pattern than using @Model classes since
- * effects are Compose lifecycle aware.
- */
-@Composable
-fun <T> uiStateFrom(
-    repositoryCall: RepositoryCall<T>
-): UiState<T> {
-    var state: UiState<T> by remember { mutableStateOf<UiState<T>>(UiState.Loading) }
-
-    // Whenever this effect is used in a composable function, it'll load data from the repository
-    // when the first composition is applied
-    LaunchedEffect(Unit) {
-        repositoryCall { result ->
-            state = when (result) {
-                is Result.Success -> UiState.Success(result.data)
-                is Result.Error -> UiState.Error(result.exception)
-            }
-        }
-    }
-
-    return state
-}
-
-/**
- * Helper function that loads data from a repository call. Only use in Previews!
- */
-@Composable
-fun <T> previewDataFrom(
-    repositoryCall: RepositoryCall<T>
-): T {
-    var state: T? = null
-    repositoryCall { result ->
-        state = (result as Result.Success).data
-    }
-    return state!!
 }

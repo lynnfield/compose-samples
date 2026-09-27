@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.posts.impl.post3
 import com.example.jetnews.model.Post
-import com.example.jetnews.ui.JetnewsStatus
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.darkThemeColors
 
@@ -171,15 +170,3 @@ fun PreviewSimplePostDark() {
         PostCardSimple(post = post3, isFavorite = true, onClick = {}, onToggleFavorite = {})
     }
 }
-
-fun toggleBookmark(postId: String) {
-    with(JetnewsStatus) {
-        if (favorites.contains(postId)) {
-            favorites.remove(postId)
-        } else {
-            favorites.add(postId)
-        }
-    }
-}
-
-fun isFavorite(postId: String) = JetnewsStatus.favorites.contains(postId)
