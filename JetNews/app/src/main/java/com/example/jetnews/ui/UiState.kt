@@ -32,6 +32,11 @@ sealed class UiState<out T> {
     data class Error(val exception: Exception) : UiState<Nothing>()
 }
 
+fun <T> Result<T>.toUiState(): UiState<T> = when (this) {
+    is Result.Success -> UiState.Success(data)
+    is Result.Error -> UiState.Error(exception)
+}
+
 /**
  * UiState factory that updates its internal state with the [com.example.jetnews.data.Result]
  * of a repository called as a parameter.
