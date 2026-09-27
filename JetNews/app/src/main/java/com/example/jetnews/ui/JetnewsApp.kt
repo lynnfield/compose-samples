@@ -93,8 +93,7 @@ enum class DrawerItem {
 fun AppDrawer(
     currentItem: DrawerItem,
     onHomeClicked: () -> Unit,
-    onInterestsClicked: () -> Unit,
-    closeDrawer: () -> Unit
+    onInterestsClicked: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(Modifier.height(24.dp))
@@ -104,20 +103,14 @@ fun AppDrawer(
             icon = R.drawable.ic_home,
             label = "Home",
             isSelected = currentItem == DrawerItem.Home,
-            action = {
-                onHomeClicked()
-                closeDrawer()
-            }
+            action = onHomeClicked
         )
 
         DrawerButton(
             icon = R.drawable.ic_interests,
             label = "Interests",
             isSelected = currentItem == DrawerItem.Interests,
-            action = {
-                onInterestsClicked()
-                closeDrawer()
-            }
+            action = onInterestsClicked
         )
     }
 }
@@ -198,8 +191,7 @@ fun PreviewJetnewsApp() {
         AppDrawer(
             currentItem = DrawerItem.Home,
             onHomeClicked = { },
-            onInterestsClicked = { },
-            closeDrawer = { }
+            onInterestsClicked = { }
         )
     }
 }
@@ -211,8 +203,7 @@ fun PreviewJetnewsAppDark() {
         AppDrawer(
             currentItem = DrawerItem.Home,
             onHomeClicked = { },
-            onInterestsClicked = { },
-            closeDrawer = { }
+            onInterestsClicked = { }
         )
     }
 }

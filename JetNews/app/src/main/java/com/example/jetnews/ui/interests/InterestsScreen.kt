@@ -75,9 +75,19 @@ fun InterestsScreen(
         drawerContent = {
             AppDrawer(
                 currentItem = DrawerItem.Interests,
-                onHomeClicked = onHomeClicked,
-                onInterestsClicked = onInterestsClicked,
-                closeDrawer = { coroutineScope.launch { scaffoldState.drawerState.close() } }
+                // Close before navigating, so the drawer isn't restored open when coming back
+                onHomeClicked = {
+                    coroutineScope.launch {
+                        scaffoldState.drawerState.close()
+                        onHomeClicked()
+                    }
+                },
+                onInterestsClicked = {
+                    coroutineScope.launch {
+                        scaffoldState.drawerState.close()
+                        onInterestsClicked()
+                    }
+                }
             )
         },
         topBar = {
