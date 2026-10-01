@@ -20,7 +20,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.ContentAlpha
@@ -124,19 +123,10 @@ fun BookmarkButton(
     onBookmark: (Boolean) -> Unit
 ) {
     IconToggleButton(checked = isBookmarked, onCheckedChange = onBookmark) {
-        if (isBookmarked) {
-            Icon(
-                painterResource(R.drawable.ic_bookmarked),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Icon(
-                painterResource(R.drawable.ic_bookmark),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        Icon(
+            painterResource(if (isBookmarked) R.drawable.ic_bookmarked else R.drawable.ic_bookmark),
+            contentDescription = null
+        )
     }
 }
 
