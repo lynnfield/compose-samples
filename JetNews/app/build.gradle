@@ -75,6 +75,23 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.activity:activity-ktx:1.9.3")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+
+    def components = "0.2.0"
+    implementation("com.genovich.components:action:$components")
+    implementation("com.genovich.components:one-of:$components")
+    implementation("com.genovich.components:uistate:$components")
+    implementation("com.genovich.components:while-active:$components")
+    implementation("com.genovich.components:update-loop:$components")
+    implementation("com.genovich.components:parallel:$components")
+    implementation("com.genovich.components:combine:$components")
+    implementation("com.genovich.components:show-progress:$components")
+    implementation("com.genovich.components:on-demand-feature:$components")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 
     androidTestImplementation(composeBom)
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
