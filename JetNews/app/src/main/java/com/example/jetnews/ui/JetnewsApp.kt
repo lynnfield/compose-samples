@@ -18,6 +18,7 @@ package com.example.jetnews.ui
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -65,6 +66,7 @@ fun JetnewsApp(uiState: StateFlow<JetNewsUiState?>) {
     }
 }
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 private fun AppContent(uiState: StateFlow<JetNewsUiState?>) {
     val screen = uiState.collectLastNonNull() ?: return

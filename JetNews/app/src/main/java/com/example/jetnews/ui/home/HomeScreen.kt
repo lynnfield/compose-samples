@@ -17,6 +17,7 @@
 package com.example.jetnews.ui.home
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -68,6 +69,7 @@ import kotlinx.coroutines.launch
 /**
  * Renders Home from the program's UI state: "Loading", the posts, or an open article on top.
  */
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun HomeRoute(
     home: StateFlow<HomeUiState>,
