@@ -17,6 +17,7 @@
 package com.example.jetnews.ui.home
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,8 @@ import androidx.compose.material.rememberDrawerState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,39 +51,73 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
-import com.example.jetnews.data.posts.PostsRepository
+import com.example.jetnews.flow.HomeUiState
+import com.example.jetnews.flow.common.LoadAndShowUiState
+import com.example.jetnews.flow.home.ShowHomeUiState
 import com.example.jetnews.model.Post
 import com.example.jetnews.ui.AppDrawer
 import com.example.jetnews.ui.DrawerItem
-import com.example.jetnews.ui.JetnewsStatus
-import com.example.jetnews.ui.Screen
 import com.example.jetnews.ui.ThemedPreview
-import com.example.jetnews.ui.UiState
+import com.example.jetnews.ui.article.ArticleRoute
 import com.example.jetnews.ui.darkThemeColors
-import com.example.jetnews.ui.navigateTo
 import com.example.jetnews.ui.previewPosts
-import com.example.jetnews.ui.uiStateFrom
+import com.genovich.components.UiState
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Renders Home from the program's UI state: "Loading", the posts, or an open article on top.
+ */
 @Composable
-fun HomeScreen(postsRepository: PostsRepository) {
-    val postsState = uiStateFrom(postsRepository::getPosts)
+fun HomeRoute(
+    home: StateFlow<HomeUiState>,
+    openInterests: StateFlow<UiState<Unit, Unit>>
+) {
+    // Hoisted, so the drawer keeps its state between Loading and the posts
+    val scaffoldState = rememberScaffoldState()
+    val homeState by home.collectAsState()
+    val loaded = homeState
+    val showHome = if (loaded is LoadAndShowUiState.Content) {
+        loaded.content.collectAsState().value
+    } else {
+        null
+    }
+    val openArticle = if (showHome is ShowHomeUiState.Article) showHome else null
+    updateTransition(openArticle, label = "article").Crossfade(contentKey = { it != null }) { article ->
+        if (article != null) {
+            ArticleRoute(article = article.article, close = article.close)
+        } else {
+            HomeBody(
+                homeState = homeState,
+                home = if (showHome is ShowHomeUiState.Home) showHome else null,
+                openInterests = openInterests,
+                scaffoldState = scaffoldState
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeBody(
+    homeState: HomeUiState,
+    home: ShowHomeUiState.Home?,
+    openInterests: StateFlow<UiState<Unit, Unit>>,
+    scaffoldState: ScaffoldState
+) {
+    val showHome = home?.home?.collectAsState()?.value
+    val openArticle = home?.openArticle?.collectAsState()?.value
+    val openInterestsState by openInterests.collectAsState()
     HomeScreen(
-        content = when (postsState) {
-            is UiState.Loading -> HomeContent.Loading
-            is UiState.Success -> HomeContent.Posts(postsState.data)
-            is UiState.Error -> HomeContent.Empty
+        content = when {
+            showHome != null -> HomeContent.Posts(showHome.input.posts)
+            homeState is LoadAndShowUiState.Loading -> HomeContent.Loading
+            else -> HomeContent.Empty
         },
-        favorites = JetnewsStatus.favorites.toSet(),
-        onPostClicked = { postId -> navigateTo(Screen.Article(postId)) },
-        onToggleFavorite = { postId ->
-            if (postId in JetnewsStatus.favorites) {
-                JetnewsStatus.favorites.remove(postId)
-            } else {
-                JetnewsStatus.favorites.add(postId)
-            }
-        },
-        onInterestsClicked = { navigateTo(Screen.Interests) }
+        favorites = showHome?.input?.favorites ?: emptySet(),
+        onPostClicked = { postId -> openArticle?.action?.invoke(postId) },
+        onToggleFavorite = { postId -> showHome?.action?.invoke(postId) },
+        onInterestsClicked = { openInterestsState.action(Unit) },
+        scaffoldState = scaffoldState
     )
 }
 

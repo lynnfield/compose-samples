@@ -20,31 +20,31 @@ import android.content.Context
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import com.example.jetnews.data.AppContainer
+import com.example.jetnews.flow.JetNewsAssembly
+import com.example.jetnews.platform.SharePost
 import com.example.jetnews.ui.JetnewsApp
-import com.example.jetnews.ui.JetnewsStatus
-import com.example.jetnews.ui.Screen
 
 /**
- * Launches the app from a test context
+ * Launches the app from a test context, with a fresh program and stores
  */
 fun ComposeContentTestRule.launchJetNewsApp(context: Context) {
-    JetnewsStatus.resetState()
+    val appContainer = AppContainer(context)
+    val (program, uiState) = JetNewsAssembly(
+        postsRepository = appContainer.postsRepository,
+        interestsRepository = appContainer.interestsRepository,
+        sharePost = SharePost(context),
+        favoritesStore = appContainer.favoritesStore,
+        selectedTopicsStore = appContainer.selectedTopicsStore
+    )
     setContent {
-        JetnewsApp(AppContainer(context))
+        LaunchedEffect(program) { program(Unit) }
+        JetnewsApp(uiState)
     }
-}
-
-/**
- * Resets the state of the app
- */
-fun JetnewsStatus.resetState() {
-    currentScreen = Screen.Home
-    favorites.clear()
-    selectedTopics.clear()
 }
 
 /**

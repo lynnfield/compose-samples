@@ -16,8 +16,7 @@
 
 package com.example.jetnews.ui.article
 
-import android.content.Context
-import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -39,47 +38,50 @@ import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
-import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.data.posts.impl.post3
+import com.example.jetnews.flow.article.ArticleUiState
+import com.example.jetnews.flow.common.LoadAndShowUiState
+import com.example.jetnews.flow.home.CloseArticleUiState
 import com.example.jetnews.model.Post
-import com.example.jetnews.ui.JetnewsStatus
-import com.example.jetnews.ui.Screen
 import com.example.jetnews.ui.ThemedPreview
-import com.example.jetnews.ui.UiState
 import com.example.jetnews.ui.darkThemeColors
-import com.example.jetnews.ui.effect.fetchPost
 import com.example.jetnews.ui.home.BookmarkButton
-import com.example.jetnews.ui.navigateTo
 import com.example.jetnews.ui.previewPost
+import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * Renders an open article from the program's UI state. Blank while the post loads or if it
+ * can't be loaded, as in the base app. Back (the app bar arrow or system back) closes it.
+ */
 @Composable
-fun ArticleScreen(postId: String, postsRepository: PostsRepository) {
-    val postsState = fetchPost(postId, postsRepository)
-    val context = LocalContext.current
-    if (postsState is UiState.Success<Post>) {
-        val post = postsState.data
+fun ArticleRoute(
+    article: StateFlow<ArticleUiState>,
+    close: StateFlow<CloseArticleUiState>
+) {
+    val closeState by close.collectAsState()
+    BackHandler { closeState.action(Unit) }
+    val articleState by article.collectAsState()
+    val loaded = articleState
+    if (loaded is LoadAndShowUiState.Content) {
+        val content by loaded.content.collectAsState()
+        val showArticle by content.article.collectAsState()
+        val share by content.share.collectAsState()
         ArticleScreen(
-            post = post,
-            isFavorite = post.id in JetnewsStatus.favorites,
-            onBack = { navigateTo(Screen.Home) },
-            onToggleFavorite = {
-                if (post.id in JetnewsStatus.favorites) {
-                    JetnewsStatus.favorites.remove(post.id)
-                } else {
-                    JetnewsStatus.favorites.add(post.id)
-                }
-            },
-            onShare = { sharePost(post, context) }
+            post = showArticle.input.post,
+            isFavorite = showArticle.input.isFavorite,
+            onBack = { closeState.action(Unit) },
+            onToggleFavorite = { showArticle.action(Unit) },
+            onShare = { share.action(share.input) }
         )
     }
 }
@@ -179,15 +181,6 @@ private fun FunctionalityNotAvailablePopup(onDismiss: () -> Unit) {
             }
         }
     )
-}
-
-private fun sharePost(post: Post, context: Context) {
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TITLE, post.title)
-        putExtra(Intent.EXTRA_TEXT, post.url)
-    }
-    context.startActivity(Intent.createChooser(intent, "Share post"))
 }
 
 @Preview("Article screen")

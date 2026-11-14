@@ -18,6 +18,7 @@ package com.example.jetnews.ui
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,50 +36,68 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
-import com.example.jetnews.data.AppContainer
-import com.example.jetnews.data.interests.InterestsRepository
-import com.example.jetnews.data.posts.PostsRepository
-import com.example.jetnews.ui.article.ArticleScreen
-import com.example.jetnews.ui.home.HomeScreen
-import com.example.jetnews.ui.interests.InterestsScreen
+import com.example.jetnews.flow.JetNewsUiState
+import com.example.jetnews.ui.home.HomeRoute
+import com.example.jetnews.ui.interests.InterestsRoute
+import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * Renders the program's UI state. Decides nothing: each case of [JetNewsUiState] is one screen,
+ * and each user action answers the T-function that is waiting for it.
+ */
 @Composable
-fun JetnewsApp(appContainer: AppContainer) {
+fun JetnewsApp(uiState: StateFlow<JetNewsUiState?>) {
 
     MaterialTheme(
         colors = lightThemeColors,
         typography = themeTypography
     ) {
-        AppContent(
-            interestsRepository = appContainer.interestsRepository,
-            postsRepository = appContainer.postsRepository
-        )
+        AppContent(uiState)
     }
 }
 
 @Composable
-private fun AppContent(
-    postsRepository: PostsRepository,
-    interestsRepository: InterestsRepository
-) {
-    Crossfade(JetnewsStatus.currentScreen) { screen ->
+private fun AppContent(uiState: StateFlow<JetNewsUiState?>) {
+    val screen = uiState.collectLastNonNull() ?: return
+    updateTransition(screen, label = "screen").Crossfade(contentKey = { it::class }) { current ->
         Surface(color = MaterialTheme.colors.background) {
-            when (screen) {
-                is Screen.Home -> HomeScreen(postsRepository = postsRepository)
-                is Screen.Interests -> InterestsScreen(interestsRepository = interestsRepository)
-                is Screen.Article -> ArticleScreen(
-                    postId = screen.postId,
-                    postsRepository = postsRepository
+            when (current) {
+                is JetNewsUiState.Home -> HomeRoute(
+                    home = current.home,
+                    openInterests = current.openInterests
+                )
+                is JetNewsUiState.Interests -> InterestsRoute(
+                    interests = current.interests,
+                    close = current.close
                 )
             }
         }
     }
+}
+
+/**
+ * Between two cases a projection is briefly `null` (for example, the instant a feature closes
+ * and before the screen under it is shown again). Keep rendering the last case for that instant.
+ */
+@Composable
+fun <T : Any> StateFlow<T?>.collectLastNonNull(): T? {
+    val value by collectAsState()
+    val last = remember(this) { LastValue<T>() }
+    value?.let { last.value = it }
+    return last.value
+}
+
+private class LastValue<T : Any> {
+    var value: T? = null
 }
 
 /**
