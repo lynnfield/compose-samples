@@ -10,8 +10,10 @@ import com.example.jetnews.data.interests.TopicSelection
 import com.example.jetnews.flow.common.LoadAndShowUiState
 import com.example.jetnews.flow.common.showChannel
 import com.example.jetnews.testing.FakeInterestsRepository
+import com.genovich.components.Action
 import com.genovich.components.OnDemandFeatureUiState
 import com.genovich.components.OneOf
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -51,6 +53,28 @@ class InterestsFeatureTest {
             OneOf.Second(exception),
             loadInterests(FakeInterestsRepository(peopleError = exception))(Unit)
         )
+    }
+
+    @Test
+    fun loadInterests_runsAllThreeInParallel() = runTest {
+        val started = mutableListOf<String>()
+        val release = CompletableDeferred<Unit>()
+        fun <T> pending(name: String, value: T) = Action<Unit, OneOf<T, Throwable>> {
+            started += name
+            release.await()
+            OneOf.First(value)
+        }
+        val load = backgroundScope.async(UnconfinedTestDispatcher(testScheduler)) {
+            LoadInterests(
+                pending("topics", emptyMap()),
+                pending("people", emptyList()),
+                pending("publications", emptyList())
+            )(Unit)
+        }
+
+        assertEquals(listOf("topics", "people", "publications"), started)
+        release.complete(Unit)
+        assertEquals(OneOf.First(Interests(emptyMap(), emptyList(), emptyList())), load.await())
     }
 
     @Test
