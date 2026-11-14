@@ -19,7 +19,9 @@ package com.example.jetnews.data
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import com.example.jetnews.data.favorites.FavoritesStore
 import com.example.jetnews.data.interests.InterestsRepository
+import com.example.jetnews.data.interests.SelectedTopicsStore
 import com.example.jetnews.data.interests.impl.FakeInterestsRepository
 import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.data.posts.impl.FakePostsRepository
@@ -51,5 +53,13 @@ class AppContainer(private val applicationContext: Context) {
 
     val interestsRepository: InterestsRepository by lazy {
         FakeInterestsRepository()
+    }
+
+    val favoritesStore: FavoritesStore by lazy {
+        FavoritesStore()
+    }
+
+    val selectedTopicsStore: SelectedTopicsStore by lazy {
+        SelectedTopicsStore()
     }
 }

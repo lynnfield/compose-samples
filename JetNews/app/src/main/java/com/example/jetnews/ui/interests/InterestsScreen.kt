@@ -16,6 +16,7 @@
 
 package com.example.jetnews.ui.interests
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,8 @@ import androidx.compose.material.TopAppBar
 import androidx.compose.material.rememberDrawerState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,19 +53,18 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
-import com.example.jetnews.data.interests.InterestsRepository
+import com.example.jetnews.data.interests.TopicSelection
 import com.example.jetnews.data.interests.impl.FakeInterestsRepository
+import com.example.jetnews.flow.common.LoadAndShowUiState
 import com.example.jetnews.flow.interests.Interests
+import com.example.jetnews.flow.interests.InterestsUiState
 import com.example.jetnews.ui.AppDrawer
 import com.example.jetnews.ui.DrawerItem
-import com.example.jetnews.ui.JetnewsStatus
-import com.example.jetnews.ui.Screen
 import com.example.jetnews.ui.ThemedPreview
-import com.example.jetnews.ui.UiState
 import com.example.jetnews.ui.darkThemeColors
-import com.example.jetnews.ui.navigateTo
 import com.example.jetnews.ui.previewData
-import com.example.jetnews.ui.uiStateFrom
+import com.genovich.components.UiState
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 private enum class Sections(val title: String) {
@@ -71,30 +73,30 @@ private enum class Sections(val title: String) {
     Publications("Publications")
 }
 
+/**
+ * Renders Interests from the program's UI state. The drawer's Home item and system back close it.
+ */
 @Composable
-fun InterestsScreen(interestsRepository: InterestsRepository) {
-    val topics = uiStateFrom(interestsRepository::getTopics)
-    val people = uiStateFrom(interestsRepository::getPeople)
-    val publications = uiStateFrom(interestsRepository::getPublications)
+fun InterestsRoute(
+    interests: StateFlow<InterestsUiState>,
+    close: StateFlow<UiState<Unit, Unit>>
+) {
+    val closeState by close.collectAsState()
+    BackHandler { closeState.action(Unit) }
+    val interestsState by interests.collectAsState()
+    val loaded = interestsState
+    val showInterests = if (loaded is LoadAndShowUiState.Content) {
+        loaded.content.collectAsState().value
+    } else {
+        null
+    }
     InterestsScreen(
-        interests = if (
-            topics is UiState.Success &&
-            people is UiState.Success &&
-            publications is UiState.Success
-        ) {
-            Interests(topics.data, people.data, publications.data)
-        } else {
-            null
-        },
-        selectedTopics = JetnewsStatus.selectedTopics.toSet(),
+        interests = showInterests?.input?.interests,
+        selectedTopics = showInterests?.input?.selectedTopics ?: emptySet(),
         onTopicToggled = { key, selected ->
-            if (selected) {
-                JetnewsStatus.selectedTopics.add(key)
-            } else {
-                JetnewsStatus.selectedTopics.remove(key)
-            }
+            showInterests?.action?.invoke(TopicSelection(key, selected))
         },
-        onHomeClicked = { navigateTo(Screen.Home) }
+        onHomeClicked = { closeState.action(Unit) }
     )
 }
 

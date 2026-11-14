@@ -18,17 +18,38 @@ package com.example.jetnews.ui
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.jetnews.JetnewsApplication
+import com.example.jetnews.flow.JetNewsAssembly
+import com.example.jetnews.platform.SharePost
 
 class MainActivity : AppCompatActivity() {
+
+    private val viewModel: JetnewsViewModel by viewModels {
+        viewModelFactory {
+            initializer {
+                val appContainer = (application as JetnewsApplication).container
+                JetnewsViewModel(
+                    JetNewsAssembly(
+                        postsRepository = appContainer.postsRepository,
+                        interestsRepository = appContainer.interestsRepository,
+                        sharePost = SharePost(applicationContext),
+                        favoritesStore = appContainer.favoritesStore,
+                        selectedTopicsStore = appContainer.selectedTopicsStore
+                    )
+                )
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val appContainer = (application as JetnewsApplication).container
         setContent {
-            JetnewsApp(appContainer = appContainer)
+            JetnewsApp(uiState = viewModel.uiState)
         }
     }
 }
