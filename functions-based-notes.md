@@ -35,8 +35,9 @@ verified on a real Android toolchain.
 7. Stateless post cards, drawer and screens (temporary wrappers kept the app on the globals)
 8. `JetnewsViewModel`, `JetnewsApp` renders `JetNewsUiState`; `Status.kt`, `UiState.kt`, `PostsEffects.kt` removed
 9. This file
+10. Opt in to `@ExperimentalAnimationApi`: `Transition.Crossfade(contentKey = …)` keys the fade on the screen's case, so re-showing Home after a bookmark doesn't fade. Found by the first real build; commit 8 alone doesn't compile without it.
 
-Unit tests (`JetNews/app/src/test`, `./gradlew :app:testDebugUnitTest`): 35 tests in
+Unit tests (`JetNews/app/src/test`, `./gradlew :app:testDebugUnitTest`) in
 `RepositoryCallTest`, `PostsLeavesTest`, `FavoritesTest`, `InterestsDataTest`, `LoadAndShowTest`,
 `ShowHomeTest`, `ShowArticleTest`, `ArticleFeatureTest`, `InterestsFeatureTest` and
 `JetNewsAssemblyTest`. They run every function with the real `Show` T-functions and answer them
@@ -47,7 +48,7 @@ through their UI state flows, the way the composables do. No Compose, no Android
 The cloud environment can't build Android (`dl.google.com` is blocked, no SDK). A throwaway JVM
 Gradle project (not committed) compiled the data, model and `flow` packages against components
 0.2.0 (with a one-line stub for `ImageBitmap`) and ran all of `src/test`. The Compose UI layer and
-the Android build were verified on Vladimir's Mac (see the TODO below).
+the Android build were verified on Vladimir's Mac with Temurin 21 (Android Studio's bundled JDK 25 is too new for Gradle 8.11.1): `assembleDebug`, `testDebugUnitTest`, `ktlint` and `assembleDebugAndroidTest` pass, and a smoke test on a Pixel 8 API 35 emulator went through the checklist below with no crashes.
 
 ## Deviations from context.md and the plan
 
@@ -71,18 +72,23 @@ the Android build were verified on Vladimir's Mac (see the TODO below).
 - [ ] ktlint 0.36.0 is very old; upgrade it on both branches together?
 - [ ] New files have no license header, as on `decompose`.
 
-## Follow-up TODO: verify on a local Android toolchain
+## Verification on a local Android toolchain
 
-- [ ] `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:ktlint`
-- [ ] `./gradlew :app:assembleDebugAndroidTest` (the updated `TestHelper`)
-- [ ] App launches; Home shows "Loading" for ~5 s on first load, then posts
-- [ ] Opening an article from each card type (top, simple, popular, history)
-- [ ] Article toolbar back arrow and system back return to Home without "Loading"
-- [ ] System back on Home exits the app
-- [ ] Drawer: Home ↔ Interests, correct highlighted item; system back from Interests returns to Home
-- [ ] Drawer → Interests while Home is still loading, then back: Home finishes loading
-- [ ] Bookmark toggled on Home shows in Article and vice versa
-- [ ] Topic selection persists across Interests tabs and after leaving and re-entering Interests
-- [ ] Rotation on each screen keeps the screen and doesn't restart the 5 s load
-- [ ] Share opens the chooser; "Functionality not available" dialog still works
-- [ ] `@Preview`s render in Android Studio
+Done on 2026-11-14 on a Pixel 8 API 35 emulator:
+
+- [x] `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:ktlint`
+- [x] `./gradlew :app:assembleDebugAndroidTest` (compiled; not run)
+- [x] App launches; Home shows "Loading", then posts after ~5 s
+- [x] Opening an article from the top card; bookmark in the article; back returns to Home without "Loading"
+- [x] Bookmark on Home fills immediately
+- [x] Drawer → Interests; select a topic; back returns to Home; reopening Interests keeps the topic
+- [x] Rotation on Home keeps the data, with no reload
+- [x] No `AndroidRuntime` errors in logcat
+- [ ] Share chooser, "Functionality not available" dialog, articles from the other card types, rotation on Article and Interests, drawer during loading
+- [ ] `@Preview`s in Android Studio
+- [ ] `connectedDebugAndroidTest` on a device
+
+**Found, not caused by this branch:** on API 35 the app is drawn edge-to-edge (forced by `targetSdk 35`
+from the toolchain migration `47e63f7`), so the app bar sits under the status bar and the drawer
+button can't be tapped; the drawer still opens with an edge swipe. It affects `decompose` the same
+way and should be fixed on both branches (window insets on the `TopAppBar` / `Scaffold`).
