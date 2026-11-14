@@ -69,6 +69,9 @@ the Android build were verified on Vladimir's Mac with Temurin 21 (Android Studi
 - [ ] Process death: is restoring the open article worth a design (deviation 10), or a non-goal for the comparison?
 - [ ] `showChannel()` is a local helper because the library's no-argument `Show()` is deprecated. Should `uistate` grow a non-deprecated binding?
 - [ ] The UI layer collects nested flows (`StateFlow<StateFlow<…>>`), which makes `JetnewsApp` and the routes verbose. Would a flattening helper in `combine` (or projections that carry values instead of flows) read better?
+- [ ] Move `LoadAndShow` into the components library (review comment on PR #1). Not now; it stays local for step 1.
+- [ ] Move `showChannel()` into `uistate` in the components library (review comment on PR #1). Not now; same question as the `Show()` item above.
+- [ ] `SharePost` returns as soon as the chooser starts, so the Article loop accepts a new tap while the share sheet is still open. Waiting until the share closes needs an `ActivityResultLauncher` registered by `MainActivity` and handed to the leaf through a port that outlives the Activity (the leaf lives in the ViewModel). Proposed for step 2 or its own commit (review comment on PR #1).
 - [ ] ktlint 0.36.0 is very old; upgrade it on both branches together?
 - [ ] New files have no license header, as on `decompose`.
 
