@@ -21,6 +21,12 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.example.jetnews.data.RepositoryCall
+import com.example.jetnews.data.Result
+import com.example.jetnews.data.posts.impl.PreviewPostsRepository
+import com.example.jetnews.model.Post
 
 @Composable
 internal fun ThemedPreview(
@@ -32,5 +38,35 @@ internal fun ThemedPreview(
         Surface {
             children()
         }
+    }
+}
+
+/**
+ * Reads the data of a repository that answers synchronously. Only use in Previews!
+ */
+fun <T> previewData(call: RepositoryCall<T>): T {
+    var data: T? = null
+    call { result -> data = (result as Result.Success).data }
+    @Suppress("UNCHECKED_CAST")
+    return data as T
+}
+
+/**
+ * All posts with their images loaded. Only use in Previews!
+ */
+@Composable
+fun previewPosts(): List<Post> {
+    val context = LocalContext.current
+    return remember(context) { previewData(PreviewPostsRepository(context)::getPosts) }
+}
+
+/**
+ * A post with its images loaded. Only use in Previews!
+ */
+@Composable
+fun previewPost(postId: String): Post {
+    val context = LocalContext.current
+    return remember(context, postId) {
+        previewData<Post?> { callback -> PreviewPostsRepository(context).getPost(postId, callback) }!!
     }
 }

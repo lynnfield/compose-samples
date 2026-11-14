@@ -41,15 +41,17 @@ import com.example.jetnews.R
 import com.example.jetnews.data.posts.impl.post1
 import com.example.jetnews.model.Post
 import com.example.jetnews.model.PostAuthor
-import com.example.jetnews.ui.Screen
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.darkThemeColors
-import com.example.jetnews.ui.navigateTo
 
 @Composable
-fun PostCardPopular(post: Post, modifier: Modifier = Modifier) {
+fun PostCardPopular(
+    post: Post,
+    onClick: (postId: String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Card(modifier = modifier.size(280.dp, 240.dp), shape = RoundedCornerShape(4.dp)) {
-        Column(modifier = Modifier.clickable(onClick = { navigateTo(Screen.Article(post.id)) })) {
+        Column(modifier = Modifier.clickable(onClick = { onClick(post.id) })) {
             val image = post.image?.let { BitmapPainter(it) }
                 ?: painterResource(R.drawable.placeholder_4_3)
             Image(
@@ -88,7 +90,7 @@ fun PostCardPopular(post: Post, modifier: Modifier = Modifier) {
 @Composable
 fun PreviewPostCardPopular() {
     ThemedPreview {
-        PostCardPopular(post = post1)
+        PostCardPopular(post = post1, onClick = {})
     }
 }
 
@@ -96,7 +98,7 @@ fun PreviewPostCardPopular() {
 @Composable
 fun PreviewPostCardPopularDark() {
     ThemedPreview(darkThemeColors) {
-        PostCardPopular(post = post1)
+        PostCardPopular(post = post1, onClick = {})
     }
 }
 
@@ -119,7 +121,8 @@ fun PreviewPostCardPopularLongText() {
                     author = PostAuthor("Author: $loremIpsum"),
                     readTimeMinutes = Int.MAX_VALUE
                 )
-            )
+            ),
+            onClick = {}
         )
     }
 }

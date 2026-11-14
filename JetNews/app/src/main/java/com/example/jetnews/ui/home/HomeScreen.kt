@@ -44,43 +44,78 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.posts.PostsRepository
-import com.example.jetnews.data.posts.impl.PreviewPostsRepository
-import com.example.jetnews.data.posts.impl.posts
 import com.example.jetnews.model.Post
 import com.example.jetnews.ui.AppDrawer
+import com.example.jetnews.ui.DrawerItem
+import com.example.jetnews.ui.JetnewsStatus
 import com.example.jetnews.ui.Screen
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.UiState
 import com.example.jetnews.ui.darkThemeColors
 import com.example.jetnews.ui.navigateTo
-import com.example.jetnews.ui.previewDataFrom
+import com.example.jetnews.ui.previewPosts
 import com.example.jetnews.ui.uiStateFrom
 import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(postsRepository: PostsRepository) {
     val postsState = uiStateFrom(postsRepository::getPosts)
-    HomeScreenScaffold(postsState = postsState)
+    HomeScreen(
+        content = when (postsState) {
+            is UiState.Loading -> HomeContent.Loading
+            is UiState.Success -> HomeContent.Posts(postsState.data)
+            is UiState.Error -> HomeContent.Empty
+        },
+        favorites = JetnewsStatus.favorites.toSet(),
+        onPostClicked = { postId -> navigateTo(Screen.Article(postId)) },
+        onToggleFavorite = { postId ->
+            if (postId in JetnewsStatus.favorites) {
+                JetnewsStatus.favorites.remove(postId)
+            } else {
+                JetnewsStatus.favorites.add(postId)
+            }
+        },
+        onInterestsClicked = { navigateTo(Screen.Interests) }
+    )
+}
+
+/**
+ * What the body of the Home screen shows.
+ */
+sealed class HomeContent {
+    object Loading : HomeContent()
+    data class Posts(val posts: List<Post>) : HomeContent()
+    object Empty : HomeContent()
 }
 
 @Composable
-fun HomeScreenScaffold(
-    scaffoldState: ScaffoldState = rememberScaffoldState(),
-    postsState: UiState<List<Post>>
+fun HomeScreen(
+    content: HomeContent,
+    favorites: Set<String>,
+    onPostClicked: (postId: String) -> Unit,
+    onToggleFavorite: (postId: String) -> Unit,
+    onInterestsClicked: () -> Unit,
+    scaffoldState: ScaffoldState = rememberScaffoldState()
 ) {
     val coroutineScope = rememberCoroutineScope()
     Scaffold(
         scaffoldState = scaffoldState,
         drawerContent = {
             AppDrawer(
-                currentScreen = Screen.Home,
-                closeDrawer = { coroutineScope.launch { scaffoldState.drawerState.close() } }
+                currentItem = DrawerItem.Home,
+                onHomeClicked = { coroutineScope.launch { scaffoldState.drawerState.close() } },
+                // Close before navigating, as on the decompose branch
+                onInterestsClicked = {
+                    coroutineScope.launch {
+                        scaffoldState.drawerState.close()
+                        onInterestsClicked()
+                    }
+                }
             )
         },
         topBar = {
@@ -97,19 +132,22 @@ fun HomeScreenScaffold(
         },
         content = { innerPadding ->
             val modifier = Modifier.padding(innerPadding)
-            Crossfade(targetState = postsState) { uiState ->
-                when (uiState) {
-                    is UiState.Success -> HomeScreenBody(
+            Crossfade(targetState = content) { bodyContent ->
+                when (bodyContent) {
+                    is HomeContent.Posts -> HomeScreenBody(
                         modifier = modifier,
-                        posts = uiState.data
+                        posts = bodyContent.posts,
+                        favorites = favorites,
+                        onPostClicked = onPostClicked,
+                        onToggleFavorite = onToggleFavorite
                     )
-                    is UiState.Loading -> {
+                    is HomeContent.Loading -> {
                         Text(
                             modifier = modifier.fillMaxSize().wrapContentSize(Alignment.Center),
                             text = "Loading"
                         )
                     }
-                    else -> {
+                    is HomeContent.Empty -> {
                         // Empty
                     }
                 }
@@ -121,6 +159,9 @@ fun HomeScreenScaffold(
 @Composable
 private fun HomeScreenBody(
     posts: List<Post>,
+    favorites: Set<String>,
+    onPostClicked: (postId: String) -> Unit,
+    onToggleFavorite: (postId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val postTop = posts[3]
@@ -129,15 +170,15 @@ private fun HomeScreenBody(
     val postsHistory = posts.subList(7, 10)
 
     Column(modifier.verticalScroll(rememberScrollState())) {
-        HomeScreenTopSection(postTop)
-        HomeScreenSimpleSection(postsSimple)
-        HomeScreenPopularSection(postsPopular)
-        HomeScreenHistorySection(postsHistory)
+        HomeScreenTopSection(postTop, onPostClicked)
+        HomeScreenSimpleSection(postsSimple, favorites, onPostClicked, onToggleFavorite)
+        HomeScreenPopularSection(postsPopular, onPostClicked)
+        HomeScreenHistorySection(postsHistory, onPostClicked)
     }
 }
 
 @Composable
-private fun HomeScreenTopSection(post: Post) {
+private fun HomeScreenTopSection(post: Post, onPostClicked: (postId: String) -> Unit) {
     CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
         Text(
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp),
@@ -147,23 +188,33 @@ private fun HomeScreenTopSection(post: Post) {
     }
     PostCardTop(
         post = post,
-        modifier = Modifier.clickable(onClick = { navigateTo(Screen.Article(post.id)) })
+        modifier = Modifier.clickable(onClick = { onPostClicked(post.id) })
     )
     HomeScreenDivider()
 }
 
 @Composable
-private fun HomeScreenSimpleSection(posts: List<Post>) {
+private fun HomeScreenSimpleSection(
+    posts: List<Post>,
+    favorites: Set<String>,
+    onPostClicked: (postId: String) -> Unit,
+    onToggleFavorite: (postId: String) -> Unit
+) {
     Column {
         posts.forEach { post ->
-            PostCardSimple(post)
+            PostCardSimple(
+                post = post,
+                isFavorite = post.id in favorites,
+                onClick = onPostClicked,
+                onToggleFavorite = onToggleFavorite
+            )
             HomeScreenDivider()
         }
     }
 }
 
 @Composable
-private fun HomeScreenPopularSection(posts: List<Post>) {
+private fun HomeScreenPopularSection(posts: List<Post>, onPostClicked: (postId: String) -> Unit) {
     Column {
         CompositionLocalProvider(LocalContentAlpha provides ContentAlpha.high) {
             Text(
@@ -178,7 +229,7 @@ private fun HomeScreenPopularSection(posts: List<Post>) {
                 .padding(end = 16.dp, bottom = 16.dp)
         ) {
             posts.forEach { post ->
-                PostCardPopular(post, Modifier.padding(start = 16.dp))
+                PostCardPopular(post, onPostClicked, Modifier.padding(start = 16.dp))
             }
         }
         HomeScreenDivider()
@@ -186,10 +237,10 @@ private fun HomeScreenPopularSection(posts: List<Post>) {
 }
 
 @Composable
-private fun HomeScreenHistorySection(posts: List<Post>) {
+private fun HomeScreenHistorySection(posts: List<Post>, onPostClicked: (postId: String) -> Unit) {
     Column {
         posts.forEach { post ->
-            PostCardHistory(post)
+            PostCardHistory(post, onPostClicked)
             HomeScreenDivider()
         }
     }
@@ -207,8 +258,12 @@ private fun HomeScreenDivider() {
 @Composable
 fun PreviewHomeScreenBody() {
     ThemedPreview {
-        val posts = loadFakePosts()
-        HomeScreenBody(posts)
+        HomeScreenBody(
+            posts = previewPosts(),
+            favorites = emptySet(),
+            onPostClicked = {},
+            onToggleFavorite = {}
+        )
     }
 }
 
@@ -216,9 +271,13 @@ fun PreviewHomeScreenBody() {
 @Composable
 private fun PreviewDrawerOpen() {
     ThemedPreview {
-        HomeScreenScaffold(
-            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open)),
-            postsState = UiState.Success(posts)
+        HomeScreen(
+            content = HomeContent.Posts(previewPosts()),
+            favorites = emptySet(),
+            onPostClicked = {},
+            onToggleFavorite = {},
+            onInterestsClicked = {},
+            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open))
         )
     }
 }
@@ -227,8 +286,12 @@ private fun PreviewDrawerOpen() {
 @Composable
 fun PreviewHomeScreenBodyDark() {
     ThemedPreview(darkThemeColors) {
-        val posts = loadFakePosts()
-        HomeScreenBody(posts)
+        HomeScreenBody(
+            posts = previewPosts(),
+            favorites = emptySet(),
+            onPostClicked = {},
+            onToggleFavorite = {}
+        )
     }
 }
 
@@ -236,14 +299,13 @@ fun PreviewHomeScreenBodyDark() {
 @Composable
 private fun PreviewDrawerOpenDark() {
     ThemedPreview(darkThemeColors) {
-        HomeScreenScaffold(
-            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open)),
-            postsState = UiState.Success(posts)
+        HomeScreen(
+            content = HomeContent.Posts(previewPosts()),
+            favorites = emptySet(),
+            onPostClicked = {},
+            onToggleFavorite = {},
+            onInterestsClicked = {},
+            scaffoldState = rememberScaffoldState(rememberDrawerState(DrawerValue.Open))
         )
     }
-}
-
-@Composable
-private fun loadFakePosts(): List<Post> {
-    return previewDataFrom(PreviewPostsRepository(LocalContext.current)::getPosts)
 }

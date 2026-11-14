@@ -20,7 +20,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.ContentAlpha
@@ -41,11 +40,8 @@ import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.posts.impl.post3
 import com.example.jetnews.model.Post
-import com.example.jetnews.ui.JetnewsStatus
-import com.example.jetnews.ui.Screen
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.darkThemeColors
-import com.example.jetnews.ui.navigateTo
 
 @Composable
 fun AuthorAndReadTime(post: Post) {
@@ -73,10 +69,15 @@ fun PostTitle(post: Post) {
 }
 
 @Composable
-fun PostCardSimple(post: Post) {
+fun PostCardSimple(
+    post: Post,
+    isFavorite: Boolean,
+    onClick: (postId: String) -> Unit,
+    onToggleFavorite: (postId: String) -> Unit
+) {
     Row(
         modifier = Modifier
-            .clickable(onClick = { navigateTo(Screen.Article(post.id)) })
+            .clickable(onClick = { onClick(post.id) })
             .padding(16.dp)
     ) {
         PostImage(post, Modifier.padding(end = 16.dp))
@@ -85,17 +86,17 @@ fun PostCardSimple(post: Post) {
             AuthorAndReadTime(post)
         }
         BookmarkButton(
-            isBookmarked = isFavorite(postId = post.id),
-            onBookmark = { toggleBookmark(postId = post.id) }
+            isBookmarked = isFavorite,
+            onBookmark = { onToggleFavorite(post.id) }
         )
     }
 }
 
 @Composable
-fun PostCardHistory(post: Post) {
+fun PostCardHistory(post: Post, onClick: (postId: String) -> Unit) {
     Row(
         Modifier
-            .clickable(onClick = { navigateTo(Screen.Article(post.id)) })
+            .clickable(onClick = { onClick(post.id) })
             .padding(16.dp)
     ) {
         PostImage(
@@ -122,19 +123,10 @@ fun BookmarkButton(
     onBookmark: (Boolean) -> Unit
 ) {
     IconToggleButton(checked = isBookmarked, onCheckedChange = onBookmark) {
-        if (isBookmarked) {
-            Icon(
-                painterResource(R.drawable.ic_bookmarked),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Icon(
-                painterResource(R.drawable.ic_bookmark),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        Icon(
+            painterResource(if (isBookmarked) R.drawable.ic_bookmarked else R.drawable.ic_bookmark),
+            contentDescription = null
+        )
     }
 }
 
@@ -149,7 +141,7 @@ fun PreviewBookmarkButton() {
 @Composable
 fun PreviewSimplePost() {
     ThemedPreview {
-        PostCardSimple(post = post3)
+        PostCardSimple(post = post3, isFavorite = false, onClick = {}, onToggleFavorite = {})
     }
 }
 
@@ -157,7 +149,7 @@ fun PreviewSimplePost() {
 @Composable
 fun PreviewHistoryPost() {
     ThemedPreview {
-        PostCardHistory(post = post3)
+        PostCardHistory(post = post3, onClick = {})
     }
 }
 
@@ -165,18 +157,6 @@ fun PreviewHistoryPost() {
 @Composable
 fun PreviewSimplePostDark() {
     ThemedPreview(darkThemeColors) {
-        PostCardSimple(post = post3)
+        PostCardSimple(post = post3, isFavorite = true, onClick = {}, onToggleFavorite = {})
     }
 }
-
-fun toggleBookmark(postId: String) {
-    with(JetnewsStatus) {
-        if (favorites.contains(postId)) {
-            favorites.remove(postId)
-        } else {
-            favorites.add(postId)
-        }
-    }
-}
-
-fun isFavorite(postId: String) = JetnewsStatus.favorites.contains(postId)

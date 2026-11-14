@@ -81,10 +81,19 @@ private fun AppContent(
     }
 }
 
+/**
+ * The top-level destinations reachable from the drawer.
+ */
+enum class DrawerItem {
+    Home,
+    Interests
+}
+
 @Composable
 fun AppDrawer(
-    currentScreen: Screen,
-    closeDrawer: () -> Unit
+    currentItem: DrawerItem,
+    onHomeClicked: () -> Unit,
+    onInterestsClicked: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(Modifier.height(24.dp))
@@ -93,21 +102,15 @@ fun AppDrawer(
         DrawerButton(
             icon = R.drawable.ic_home,
             label = "Home",
-            isSelected = currentScreen == Screen.Home,
-            action = {
-                navigateTo(Screen.Home)
-                closeDrawer()
-            }
+            isSelected = currentItem == DrawerItem.Home,
+            action = onHomeClicked
         )
 
         DrawerButton(
             icon = R.drawable.ic_interests,
             label = "Interests",
-            isSelected = currentScreen == Screen.Interests,
-            action = {
-                navigateTo(Screen.Interests)
-                closeDrawer()
-            }
+            isSelected = currentItem == DrawerItem.Interests,
+            action = onInterestsClicked
         )
     }
 }
@@ -186,8 +189,9 @@ private fun DrawerButton(
 fun PreviewJetnewsApp() {
     ThemedPreview {
         AppDrawer(
-            currentScreen = JetnewsStatus.currentScreen,
-            closeDrawer = { }
+            currentItem = DrawerItem.Home,
+            onHomeClicked = { },
+            onInterestsClicked = { }
         )
     }
 }
@@ -197,8 +201,9 @@ fun PreviewJetnewsApp() {
 fun PreviewJetnewsAppDark() {
     ThemedPreview(darkThemeColors) {
         AppDrawer(
-            currentScreen = JetnewsStatus.currentScreen,
-            closeDrawer = { }
+            currentItem = DrawerItem.Home,
+            onHomeClicked = { },
+            onInterestsClicked = { }
         )
     }
 }
