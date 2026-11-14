@@ -56,8 +56,9 @@ import com.example.jetnews.ui.AppDrawer
 import com.example.jetnews.ui.DrawerItem
 import com.example.jetnews.ui.PreviewHomeComponent
 import com.example.jetnews.ui.ThemedPreview
-import com.example.jetnews.ui.UiState
+import com.example.jetnews.ui.currentData
 import com.example.jetnews.ui.darkThemeColors
+import com.example.jetnews.ui.loading
 import com.example.jetnews.ui.previewPosts
 import kotlinx.coroutines.launch
 
@@ -105,15 +106,16 @@ fun HomeScreen(
         content = { innerPadding ->
             val modifier = Modifier.padding(innerPadding)
             Crossfade(targetState = model.posts) { uiState ->
-                when (uiState) {
-                    is UiState.Success -> HomeScreenBody(
+                val posts = uiState.currentData
+                when {
+                    posts != null -> HomeScreenBody(
                         modifier = modifier,
-                        posts = uiState.data,
+                        posts = posts,
                         favorites = model.favorites,
                         onPostClicked = component::onPostClicked,
                         onToggleFavorite = component::onFavoriteToggled
                     )
-                    is UiState.Loading -> {
+                    uiState.loading -> {
                         Text(
                             modifier = modifier.fillMaxSize().wrapContentSize(Alignment.Center),
                             text = "Loading"

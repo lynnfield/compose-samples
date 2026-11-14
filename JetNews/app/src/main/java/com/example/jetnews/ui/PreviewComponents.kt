@@ -23,9 +23,13 @@ class PreviewHomeComponent(
     favorites: Set<String> = emptySet()
 ) : HomeComponent {
 
-    override val model = MutableValue(HomeComponent.Model(UiState.Success(posts), favorites))
+    override val model = MutableValue(
+        HomeComponent.Model(RefreshableUiState.Success(posts, loading = false), favorites)
+    )
 
     override fun onPostClicked(postId: String) = Unit
+
+    override fun onRefresh() = Unit
 
     override fun onFavoriteToggled(postId: String) {
         model.update { it.copy(favorites = it.favorites.toggle(postId)) }

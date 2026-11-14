@@ -10,10 +10,12 @@ import com.example.jetnews.data.awaitPosts
 import com.example.jetnews.data.favorites.FavoritesStore
 import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.model.Post
-import com.example.jetnews.ui.UiState
-import com.example.jetnews.ui.toUiState
+import com.example.jetnews.ui.RefreshableUiState
+import com.example.jetnews.ui.toLoading
+import com.example.jetnews.ui.withResult
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -29,8 +31,13 @@ interface HomeComponent {
 
     fun onFavoriteToggled(postId: String)
 
+    /**
+     * Reloads the posts, keeping the current ones on screen. Ignored while a load is running.
+     */
+    fun onRefresh()
+
     data class Model(
-        val posts: UiState<List<Post>>,
+        val posts: RefreshableUiState<List<Post>>,
         val favorites: Set<String>
     )
 }
@@ -58,8 +65,12 @@ class DefaultHomeComponent(
         favoritesStore.toggle(postId)
     }
 
+    override fun onRefresh() {
+        retained.refresh()
+    }
+
     private class Retained(
-        postsRepository: PostsRepository,
+        private val postsRepository: PostsRepository,
         favoritesStore: FavoritesStore,
         mainContext: CoroutineContext
     ) : InstanceKeeper.Instance {
@@ -68,20 +79,28 @@ class DefaultHomeComponent(
 
         val model = MutableValue(
             HomeComponent.Model(
-                posts = UiState.Loading,
+                posts = RefreshableUiState.Success(data = null, loading = true),
                 favorites = favoritesStore.favorites.value
             )
         )
 
+        private var loading: Job? = null
+
         init {
-            scope.launch {
-                val posts = postsRepository.awaitPosts().toUiState()
-                model.update { it.copy(posts = posts) }
-            }
+            refresh()
             scope.launch {
                 favoritesStore.favorites.collect { favorites ->
                     model.update { it.copy(favorites = favorites) }
                 }
+            }
+        }
+
+        fun refresh() {
+            if (loading?.isActive == true) return
+            model.update { it.copy(posts = it.posts.toLoading()) }
+            loading = scope.launch {
+                val result = postsRepository.awaitPosts()
+                model.update { it.copy(posts = it.posts.withResult(result)) }
             }
         }
 
