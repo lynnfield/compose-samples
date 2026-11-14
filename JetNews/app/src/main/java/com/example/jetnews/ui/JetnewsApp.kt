@@ -38,7 +38,6 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
@@ -50,6 +49,7 @@ import com.example.jetnews.flow.JetNewsUiState
 import com.example.jetnews.ui.home.HomeRoute
 import com.example.jetnews.ui.interests.InterestsRoute
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
 
 /**
  * Renders the program's UI state. Decides nothing: each case of [JetNewsUiState] is one screen,
@@ -91,16 +91,8 @@ private fun AppContent(uiState: StateFlow<JetNewsUiState?>) {
  * and before the screen under it is shown again). Keep rendering the last case for that instant.
  */
 @Composable
-fun <T : Any> StateFlow<T?>.collectLastNonNull(): T? {
-    val value by collectAsState()
-    val last = remember(this) { LastValue<T>() }
-    value?.let { last.value = it }
-    return last.value
-}
-
-private class LastValue<T : Any> {
-    var value: T? = null
-}
+fun <T : Any> StateFlow<T?>.collectLastNonNull(): T? =
+    remember(this) { filterNotNull() }.collectAsState(initial = value).value
 
 /**
  * The top-level destinations reachable from the drawer.
