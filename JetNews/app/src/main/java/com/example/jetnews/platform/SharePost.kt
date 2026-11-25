@@ -1,15 +1,14 @@
 package com.example.jetnews.platform
 
-import android.content.Context
 import android.content.Intent
 import com.example.jetnews.model.Post
 import com.genovich.components.Action
 
 /**
- * Opens the system share sheet for a post.
+ * Opens the system share sheet for a post and returns when the share sheet closes.
  */
 class SharePost(
-    val context: Context
+    val shareSheet: ActivityResultPort<Intent>
 ) : Action<Post, Unit>() {
 
     override suspend fun invoke(input: Post) {
@@ -18,8 +17,6 @@ class SharePost(
             putExtra(Intent.EXTRA_TITLE, input.title)
             putExtra(Intent.EXTRA_TEXT, input.url)
         }
-        context.startActivity(
-            Intent.createChooser(intent, "Share post").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
+        shareSheet.launchAndAwait(Intent.createChooser(intent, "Share post"))
     }
 }

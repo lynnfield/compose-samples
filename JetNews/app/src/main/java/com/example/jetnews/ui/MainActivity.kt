@@ -16,14 +16,17 @@
 
 package com.example.jetnews.ui
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.jetnews.JetnewsApplication
 import com.example.jetnews.flow.JetNewsAssembly
+import com.example.jetnews.platform.ActivityResultPort
 import com.example.jetnews.platform.SharePost
 
 class MainActivity : AppCompatActivity() {
@@ -32,24 +35,40 @@ class MainActivity : AppCompatActivity() {
         viewModelFactory {
             initializer {
                 val appContainer = (application as JetnewsApplication).container
+                val shareSheet = ActivityResultPort<Intent>()
                 JetnewsViewModel(
-                    JetNewsAssembly(
+                    program = JetNewsAssembly(
                         postsRepository = appContainer.postsRepository,
                         interestsRepository = appContainer.interestsRepository,
-                        sharePost = SharePost(applicationContext),
+                        sharePost = SharePost(shareSheet),
                         favoritesStore = appContainer.favoritesStore,
                         selectedTopicsStore = appContainer.selectedTopicsStore
-                    )
+                    ),
+                    shareSheet = shareSheet
                 )
             }
         }
     }
 
+    // Registered before the Activity starts, so a result after a rotation still arrives here
+    private val shareSheetLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            viewModel.shareSheet.onResult()
+        }
+
+    private val launchShareSheet: (Intent) -> Unit = { intent -> shareSheetLauncher.launch(intent) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        viewModel.shareSheet.attach(launchShareSheet)
 
         setContent {
             JetnewsApp(uiState = viewModel.uiState)
         }
+    }
+
+    override fun onDestroy() {
+        viewModel.shareSheet.detach(launchShareSheet)
+        super.onDestroy()
     }
 }

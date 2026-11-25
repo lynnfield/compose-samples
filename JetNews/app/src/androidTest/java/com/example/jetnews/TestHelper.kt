@@ -26,6 +26,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import com.example.jetnews.data.AppContainer
 import com.example.jetnews.flow.JetNewsAssembly
+import com.example.jetnews.platform.ActivityResultPort
 import com.example.jetnews.platform.SharePost
 import com.example.jetnews.ui.JetnewsApp
 
@@ -38,7 +39,8 @@ fun ComposeContentTestRule.launchJetNewsApp(context: Context) {
     val (program, uiState) = JetNewsAssembly(
         postsRepository = appContainer.postsRepository,
         interestsRepository = appContainer.interestsRepository,
-        sharePost = SharePost(context),
+        // Nothing attaches a share sheet in UI tests
+        sharePost = SharePost(ActivityResultPort()),
         favoritesStore = appContainer.favoritesStore,
         selectedTopicsStore = appContainer.selectedTopicsStore
     )
