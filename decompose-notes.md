@@ -90,7 +90,8 @@ artifacts that are only on Google Maven, so no composable was executed.
 
 - [ ] Should `InterestsComponent`'s selected tab also survive process death (via `stateKeeper`)?
       Current default: no, rotation only, like the original.
-- [ ] Keep dropping `onRefresh` (deviation 3), or add a refresh/retry affordance on both branches?
+- [x] Keep dropping `onRefresh` (deviation 3), or add a refresh/retry affordance on both branches?
+      Added in step 2 with upstream's pull to refresh (see below).
 - [ ] Upgrade path: moving to Decompose 3.4+/3.5 requires a Compose BOM bump (foundation 1.8.x).
       Do it on both branches together, or leave pinned?
 - [ ] ktlint 0.36.0 is very old; upgrade it on both branches in a separate change?
@@ -134,3 +135,41 @@ there:
       `rememberCoroutineScope`, but confirm no "not on main thread" errors in logcat
 - [ ] Dependency resolution: `fragment-ktx` 1.6.2 (from Decompose) and coroutines 1.9.0 alongside
       the Compose BOM; check `./gradlew :app:dependencies` for unexpected upgrades
+
+## Step 2: loading and error screens, pull to refresh (upstream `5a40e834`)
+
+Commits, mirrored on `functions-based`:
+
+1. The fake posts repository waits 2 s on the first call and 1.5 s on every call, and fails 1/3 of
+   the time (upstream). The failure rate is a parameter; the UI test helper sets it to 0.
+2. Retry failed loads on Home, Article and Interests.
+3. A spinner while Home and an article load.
+4. Pull to refresh on Home.
+
+| Topic | Decision | Why |
+|---|---|---|
+| Home model | `posts: List<Post>?`, `isLoading`, `showError` instead of `UiState<List<Post>>` | A refresh keeps the old posts on screen while it runs and after it fails, which one `UiState` can't express. Same idea as upstream's `RefreshableUiState`, flattened. The UI derives "first load" (`isLoading && posts == null`) and "refreshing" (`isLoading && posts != null`). |
+| Refresh and Retry | One `loadPosts()` in the retained instance, ignored while a load runs | Upstream's refresh and Retry are the same call. |
+| Error snackbar | `onErrorDismissed()` is an intent; the 5 s timeout lives in the composable | Matches upstream (`stateFor` + a 5 s `Handler`), but the shown flag is in the model so it survives rotation. |
+| Article and Interests errors | An error screen with Retry (`onRetry`); Interests reloads only the lists that failed | Upstream left both blank. Added on both branches, so every load in the app can be retried. |
+| Article loading | The app bar with Back above a spinner | Upstream left it blank; decided for step 2 in the plan. |
+| Swipe to refresh | Material `pullRefresh` + `PullRefreshIndicator` (`@ExperimentalMaterialApi`) | Upstream copied a pre-1.0 `StateDraggable`; Material ships the same thing now. |
+
+**Behavior to note:** a refresh still running when an article opens finishes in the background,
+because Home's component stays alive under the Article in the stack. On `functions-based`,
+opening an article cancels the refresh (as leaving Home did upstream).
+
+### Friction log
+
+- Retry and refresh were the cheapest part: a `loadPosts()` function, a `Job` field so a second
+  pull doesn't start a second load, and three intents. Everything is ordinary mutable state.
+- The model got weaker: three fields (`posts`, `isLoading`, `showError`) allow combinations that
+  never happen, and the UI has to know which ones mean "refreshing". `UiState` from step 1 was
+  exact but couldn't hold "old data plus a new load".
+- Interests needed the most work for the least benefit: three separate loads, so Retry has to
+  know which of them failed (+22 lines, for an error the fake repository never produces).
+- View state leaks into the component: whether the snackbar is still shown is in `Model`, so it
+  can survive rotation.
+- Nothing to do for "Share waits until the sheet closes": share never reaches the component, so
+  there is no step to wait for. Two quick Share taps can still open two share sheets.
+
