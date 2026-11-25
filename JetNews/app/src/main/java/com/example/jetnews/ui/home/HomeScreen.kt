@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.Divider
 import androidx.compose.material.DrawerValue
@@ -78,7 +79,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Renders Home from the program's UI state: loading, the posts, an open article on top, or the
+ * Renders Home from the program's UI state: a spinner, the posts, an open article on top, or the
  * error with Retry.
  */
 @OptIn(ExperimentalAnimationApi::class)
@@ -212,10 +213,9 @@ fun HomeScreen(
                             onToggleFavorite = onToggleFavorite
                         )
                         is HomeContent.Loading -> {
-                            Text(
-                                modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center),
-                                text = "Loading"
-                            )
+                            Box(Modifier.fillMaxSize().wrapContentSize(Alignment.Center)) {
+                                CircularProgressIndicator()
+                            }
                         }
                         is HomeContent.Empty -> {
                             // Empty

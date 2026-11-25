@@ -19,6 +19,7 @@ package com.example.jetnews.ui.article
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.AlertDialog
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.LocalContentColor
@@ -44,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -63,8 +66,8 @@ import com.genovich.components.TryAgainUiState
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Renders an open article from the program's UI state. Blank while the post loads, then the post,
- * or the error with Retry. Back (the app bar arrow or system back) closes it.
+ * Renders an open article from the program's UI state: a spinner while the post loads, then the
+ * post, or the error with Retry. Back (the app bar arrow or system back) closes it.
  */
 @Composable
 fun ArticleRoute(
@@ -84,7 +87,11 @@ fun ArticleRoute(
         is TryAgainUiState.Action -> {
             val loadedState by retryable.flow.collectAsState()
             val loaded = loadedState
-            if (loaded is LoadAndShowUiState.Content) {
+            if (loaded is LoadAndShowUiState.Loading) {
+                ArticleStatusScreen(onBack = { closeState.action(Unit) }) {
+                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                }
+            } else if (loaded is LoadAndShowUiState.Content) {
                 val content by loaded.content.collectAsState()
                 val showArticle by content.article.collectAsState()
                 val share by content.share.collectAsState()
@@ -153,7 +160,7 @@ fun ArticleScreen(
 @Composable
 fun ArticleStatusScreen(
     onBack: () -> Unit,
-    content: @Composable() () -> Unit
+    content: @Composable() BoxScope.() -> Unit
 ) {
     Scaffold(
         topBar = {

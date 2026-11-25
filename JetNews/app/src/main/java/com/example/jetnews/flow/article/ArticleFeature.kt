@@ -9,13 +9,14 @@ import com.genovich.components.Action
 import com.genovich.components.OnDemandFeature
 import com.genovich.components.OneOf
 import com.genovich.components.Progress
+import com.genovich.components.Publish
+import com.genovich.components.ShowProgress
 import com.genovich.components.TryAgain
 import com.genovich.components.UiStateFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * An open article: blank while the post loads, then the post, or the error with Retry.
+ * An open article: the progress while the post loads, then the post, or the error with Retry.
  */
 typealias ArticleUiState = RetryableUiState<ShowArticleUiState>
 
@@ -30,7 +31,7 @@ fun ArticleContent(
     sharePost: Action<Post, Unit>
 ): Pair<Action<String, Nothing>, StateFlow<ArticleUiState?>> = TryAgain(
     action = LoadAndShow(
-        load = loadPost to MutableStateFlow<Progress?>(null),
+        load = ShowProgress(loadPost, Publish<Progress>()),
         show = ShowArticle(
             getFavorites = getFavorites,
             showArticle = showChannel(),
