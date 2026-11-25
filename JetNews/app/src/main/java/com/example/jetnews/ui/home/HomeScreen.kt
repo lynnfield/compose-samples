@@ -31,6 +31,7 @@ import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.Divider
 import androidx.compose.material.DrawerValue
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.LocalContentAlpha
@@ -41,6 +42,9 @@ import androidx.compose.material.Snackbar
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.rememberDrawerState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
@@ -67,6 +71,7 @@ import com.example.jetnews.ui.previewPosts
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun HomeScreen(
     component: HomeComponent,
@@ -115,7 +120,14 @@ fun HomeScreen(
                 model.isLoading -> HomeContent.Loading
                 else -> HomeContent.Empty
             }
-            Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            val refreshing = posts != null && model.isLoading
+            val pullRefreshState = rememberPullRefreshState(refreshing, component::onRefresh)
+            Box(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .pullRefresh(pullRefreshState, enabled = content !is HomeContent.Loading)
+            ) {
                 Crossfade(targetState = content) { bodyContent ->
                     when (bodyContent) {
                         is HomeContent.Posts -> HomeScreenBody(
@@ -130,10 +142,16 @@ fun HomeScreen(
                             }
                         }
                         is HomeContent.Empty -> {
-                            // Empty
+                            // Empty, but scrollable, so it can be pulled to refresh
+                            Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
                         }
                     }
                 }
+                PullRefreshIndicator(
+                    refreshing = refreshing,
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
                 ErrorSnackbar(
                     showError = model.showError,
                     onRetry = component::onRetry,

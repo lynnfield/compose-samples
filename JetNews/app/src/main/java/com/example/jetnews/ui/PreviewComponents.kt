@@ -29,6 +29,8 @@ class PreviewHomeComponent(
 
     override fun onPostClicked(postId: String) = Unit
 
+    override fun onRefresh() = Unit
+
     override fun onRetry() = Unit
 
     override fun onErrorDismissed() = Unit

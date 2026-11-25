@@ -75,6 +75,42 @@ class DefaultHomeComponentTest {
     }
 
     @Test
+    fun onRefresh_keepsThePostsWhileReloading() {
+        val component = createComponent()
+        repository.completePosts(Result.Success(posts))
+
+        component.onRefresh()
+        assertEquals(posts, component.model.value.posts)
+        assertTrue(component.model.value.isLoading)
+
+        val newPosts = posts.take(1)
+        repository.completePosts(Result.Success(newPosts))
+        assertEquals(newPosts, component.model.value.posts)
+        assertFalse(component.model.value.isLoading)
+    }
+
+    @Test
+    fun aFailedRefreshKeepsThePostsAndShowsTheError() {
+        val component = createComponent()
+        repository.completePosts(Result.Success(posts))
+
+        component.onRefresh()
+        repository.completePosts(Result.Error(IllegalStateException("offline")))
+
+        assertEquals(posts, component.model.value.posts)
+        assertTrue(component.model.value.showError)
+    }
+
+    @Test
+    fun onRefresh_whileLoadingDoesNotLoadTwice() {
+        val component = createComponent()
+
+        component.onRefresh()
+
+        assertEquals(1, repository.postsRequests)
+    }
+
+    @Test
     fun onErrorDismissed_hidesTheError() {
         val component = createComponent()
         repository.completePosts(Result.Error(IllegalStateException("boom")))

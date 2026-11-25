@@ -19,7 +19,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * The Home screen: the list of posts, with bookmarks. A failed load shows an error with Retry.
+ * The Home screen: the list of posts, with bookmarks and pull to refresh. A failed load shows an
+ * error with Retry, and keeps the posts that are already on screen.
  */
 interface HomeComponent {
 
@@ -28,6 +29,8 @@ interface HomeComponent {
     fun onPostClicked(postId: String)
 
     fun onFavoriteToggled(postId: String)
+
+    fun onRefresh()
 
     fun onRetry()
 
@@ -66,6 +69,10 @@ class DefaultHomeComponent(
 
     override fun onFavoriteToggled(postId: String) {
         favoritesStore.toggle(postId)
+    }
+
+    override fun onRefresh() {
+        retained.loadPosts()
     }
 
     override fun onRetry() {
