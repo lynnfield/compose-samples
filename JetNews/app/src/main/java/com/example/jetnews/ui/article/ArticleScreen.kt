@@ -20,6 +20,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.AlertDialog
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.LocalContentColor
@@ -44,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -62,8 +65,8 @@ import com.example.jetnews.ui.home.BookmarkButton
 import com.example.jetnews.ui.previewPost
 
 /**
- * Renders the article component: blank while the post loads, then the post, or the error with
- * Retry.
+ * Renders the article component: a spinner while the post loads, then the post, or the error
+ * with Retry.
  */
 @Composable
 fun ArticleScreen(component: ArticleComponent) {
@@ -78,8 +81,8 @@ fun ArticleScreen(component: ArticleComponent) {
         is UiState.Error -> ArticleStatusScreen(onBack = component::onBackClicked) {
             ErrorScreen(message = "Can't load the article", onRetry = component::onRetry)
         }
-        is UiState.Loading -> {
-            // Blank
+        is UiState.Loading -> ArticleStatusScreen(onBack = component::onBackClicked) {
+            CircularProgressIndicator(Modifier.align(Alignment.Center))
         }
     }
 }
@@ -136,7 +139,7 @@ private fun ArticleScreen(
 @Composable
 fun ArticleStatusScreen(
     onBack: () -> Unit,
-    content: @Composable() () -> Unit
+    content: @Composable() BoxScope.() -> Unit
 ) {
     Scaffold(
         topBar = {

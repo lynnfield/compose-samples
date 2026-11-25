@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.Divider
 import androidx.compose.material.DrawerValue
@@ -124,10 +125,9 @@ fun HomeScreen(
                             onToggleFavorite = component::onFavoriteToggled
                         )
                         is HomeContent.Loading -> {
-                            Text(
-                                modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center),
-                                text = "Loading"
-                            )
+                            Box(Modifier.fillMaxSize().wrapContentSize(Alignment.Center)) {
+                                CircularProgressIndicator()
+                            }
                         }
                         is HomeContent.Empty -> {
                             // Empty
