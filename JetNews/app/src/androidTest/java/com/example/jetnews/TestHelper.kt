@@ -33,7 +33,8 @@ import com.example.jetnews.ui.JetnewsApp
  * Launches the app from a test context, with a fresh program and stores
  */
 fun ComposeContentTestRule.launchJetNewsApp(context: Context) {
-    val appContainer = AppContainer(context)
+    // No random network errors, so the tests are deterministic
+    val appContainer = AppContainer(context, postsFailureRate = 0f)
     val (program, uiState) = JetNewsAssembly(
         postsRepository = appContainer.postsRepository,
         interestsRepository = appContainer.interestsRepository,
