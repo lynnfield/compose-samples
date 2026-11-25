@@ -21,6 +21,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -53,15 +54,17 @@ import com.example.jetnews.flow.article.ArticleUiState
 import com.example.jetnews.flow.common.LoadAndShowUiState
 import com.example.jetnews.flow.home.CloseArticleUiState
 import com.example.jetnews.model.Post
+import com.example.jetnews.ui.ErrorScreen
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.darkThemeColors
 import com.example.jetnews.ui.home.BookmarkButton
 import com.example.jetnews.ui.previewPost
+import com.genovich.components.TryAgainUiState
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Renders an open article from the program's UI state. Blank while the post loads or if it
- * can't be loaded, as in the base app. Back (the app bar arrow or system back) closes it.
+ * Renders an open article from the program's UI state. Blank while the post loads, then the post,
+ * or the error with Retry. Back (the app bar arrow or system back) closes it.
  */
 @Composable
 fun ArticleRoute(
@@ -71,18 +74,29 @@ fun ArticleRoute(
     val closeState by close.collectAsState()
     BackHandler { closeState.action(Unit) }
     val articleState by article.collectAsState()
-    val loaded = articleState
-    if (loaded is LoadAndShowUiState.Content) {
-        val content by loaded.content.collectAsState()
-        val showArticle by content.article.collectAsState()
-        val share by content.share.collectAsState()
-        ArticleScreen(
-            post = showArticle.input.post,
-            isFavorite = showArticle.input.isFavorite,
-            onBack = { closeState.action(Unit) },
-            onToggleFavorite = { showArticle.action(Unit) },
-            onShare = { share.action(share.input) }
-        )
+    when (val retryable = articleState) {
+        is TryAgainUiState.Error -> {
+            val error by retryable.flow.collectAsState()
+            ArticleStatusScreen(onBack = { closeState.action(Unit) }) {
+                ErrorScreen(message = "Can't load the article", onRetry = { error.action(Unit) })
+            }
+        }
+        is TryAgainUiState.Action -> {
+            val loadedState by retryable.flow.collectAsState()
+            val loaded = loadedState
+            if (loaded is LoadAndShowUiState.Content) {
+                val content by loaded.content.collectAsState()
+                val showArticle by content.article.collectAsState()
+                val share by content.share.collectAsState()
+                ArticleScreen(
+                    post = showArticle.input.post,
+                    isFavorite = showArticle.input.isFavorite,
+                    onBack = { closeState.action(Unit) },
+                    onToggleFavorite = { showArticle.action(Unit) },
+                    onShare = { share.action(share.input) }
+                )
+            }
+        }
     }
 }
 
@@ -128,6 +142,34 @@ fun ArticleScreen(
                 onShare = onShare,
                 onUnimplementedAction = { showDialog = true }
             )
+        }
+    )
+}
+
+/**
+ * The article's app bar with Back, above something that isn't the post yet: the progress or
+ * the error.
+ */
+@Composable
+fun ArticleStatusScreen(
+    onBack: () -> Unit,
+    content: @Composable() () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    }
+                }
+            )
+        },
+        content = { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                content()
+            }
         }
     )
 }

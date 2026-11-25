@@ -60,9 +60,11 @@ import com.example.jetnews.flow.interests.Interests
 import com.example.jetnews.flow.interests.InterestsUiState
 import com.example.jetnews.ui.AppDrawer
 import com.example.jetnews.ui.DrawerItem
+import com.example.jetnews.ui.ErrorScreen
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.darkThemeColors
 import com.example.jetnews.ui.previewData
+import com.genovich.components.TryAgainUiState
 import com.genovich.components.UiState
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -84,7 +86,17 @@ fun InterestsRoute(
     val closeState by close.collectAsState()
     BackHandler { closeState.action(Unit) }
     val interestsState by interests.collectAsState()
-    val loaded = interestsState
+    val retryable = interestsState
+    val error = if (retryable is TryAgainUiState.Error) {
+        retryable.flow.collectAsState().value
+    } else {
+        null
+    }
+    val loaded = if (retryable is TryAgainUiState.Action) {
+        retryable.flow.collectAsState().value
+    } else {
+        null
+    }
     val showInterests = if (loaded is LoadAndShowUiState.Content) {
         loaded.content.collectAsState().value
     } else {
@@ -96,7 +108,8 @@ fun InterestsRoute(
         onTopicToggled = { key, selected ->
             showInterests?.action?.invoke(TopicSelection(key, selected))
         },
-        onHomeClicked = { closeState.action(Unit) }
+        onHomeClicked = { closeState.action(Unit) },
+        onRetry = error?.let { { it.action(Unit) } }
     )
 }
 
@@ -106,6 +119,7 @@ fun InterestsScreen(
     selectedTopics: Set<String>,
     onTopicToggled: (topicKey: String, selected: Boolean) -> Unit,
     onHomeClicked: () -> Unit,
+    onRetry: (() -> Unit)? = null,
     scaffoldState: ScaffoldState = rememberScaffoldState()
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -144,6 +158,7 @@ fun InterestsScreen(
                 interests = interests,
                 selectedTopics = selectedTopics,
                 onTopicToggled = onTopicToggled,
+                onRetry = onRetry,
                 modifier = Modifier.padding(innerPadding)
             )
         }
@@ -157,6 +172,7 @@ private fun InterestsScreenBody(
     interests: Interests?,
     selectedTopics: Set<String>,
     onTopicToggled: (topicKey: String, selected: Boolean) -> Unit,
+    onRetry: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val sectionTitles = Sections.values().map { it.title }
@@ -181,6 +197,8 @@ private fun InterestsScreenBody(
                     Sections.Publications ->
                         PublicationsTab(interests.publications, selectedTopics, onTopicToggled)
                 }
+            } else if (onRetry != null) {
+                ErrorScreen(message = "Can't load your interests", onRetry = onRetry)
             }
         }
     }

@@ -13,6 +13,7 @@ import com.example.jetnews.testing.FakeInterestsRepository
 import com.genovich.components.Action
 import com.genovich.components.OnDemandFeatureUiState
 import com.genovich.components.OneOf
+import com.genovich.components.TryAgainUiState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
@@ -83,7 +84,8 @@ class InterestsFeatureTest {
         (uiState.value as OnDemandFeatureUiState.Open).flow.value.action(Unit)
 
         val open = uiState.value as OnDemandFeatureUiState.FeatureAndClose
-        val content = open.featureFlow.value as LoadAndShowUiState.Content
+        val content = (open.featureFlow.value as TryAgainUiState.Action).flow.value
+            as LoadAndShowUiState.Content
         content.content.value.action(TopicSelection("Topics-Android-Kotlin", selected = true))
 
         assertEquals(setOf("Topics-Android-Kotlin"), content.content.value.input.selectedTopics)
@@ -100,7 +102,8 @@ class InterestsFeatureTest {
         (uiState.value as OnDemandFeatureUiState.Open).flow.value.action(Unit)
 
         val open = uiState.value as OnDemandFeatureUiState.FeatureAndClose
-        val content = open.featureFlow.value as LoadAndShowUiState.Content
+        val content = (open.featureFlow.value as TryAgainUiState.Action).flow.value
+            as LoadAndShowUiState.Content
         assertEquals(setOf("People- -Person"), content.content.value.input.selectedTopics)
     }
 }

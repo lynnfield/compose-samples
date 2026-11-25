@@ -30,6 +30,7 @@ import com.genovich.components.OneOf
 import com.genovich.components.Progress
 import com.genovich.components.Publish
 import com.genovich.components.ShowProgress
+import com.genovich.components.TryAgain
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -54,19 +55,21 @@ fun JetNewsAssembly(
         loadPeople = LoadPeople(interestsRepository),
         loadPublications = LoadPublications(interestsRepository)
     ),
-    home: Pair<Action<Unit, Nothing>, StateFlow<HomeUiState?>> = LoadAndShow(
-        load = ShowProgress(loadPosts, Publish<Progress>()),
-        show = ShowHome(
-            getFavorites = getFavorites,
-            showHome = showChannel(),
-            toggleFavorite = toggleFavorite,
-            article = ArticleFeature(
-                openArticle = showChannel(),
-                closeArticle = showChannel(),
-                content = { ArticleContent(loadPost, getFavorites, toggleFavorite, sharePost) }
+    home: Pair<Action<Unit, Nothing>, StateFlow<HomeUiState?>> = TryAgain(
+        action = LoadAndShow(
+            load = ShowProgress(loadPosts, Publish<Progress>()),
+            show = ShowHome(
+                getFavorites = getFavorites,
+                showHome = showChannel(),
+                toggleFavorite = toggleFavorite,
+                article = ArticleFeature(
+                    openArticle = showChannel(),
+                    closeArticle = showChannel(),
+                    content = { ArticleContent(loadPost, getFavorites, toggleFavorite, sharePost) }
+                )
             )
         ),
-        showError = showChannel<Throwable, Nothing>()
+        showError = showChannel()
     ),
     interests: Pair<Action<Unit, Unit>, StateFlow<InterestsFeatureUiState?>> = InterestsFeature(
         openInterests = showChannel(),

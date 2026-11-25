@@ -5,6 +5,8 @@ import com.genovich.components.OneOf
 import com.genovich.components.Progress
 import com.genovich.components.Publish
 import com.genovich.components.ShowProgress
+import com.genovich.components.TryAgain
+import com.genovich.components.TryAgainUiState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -20,31 +22,25 @@ class LoadAndShowTest {
     @Test
     fun showsLoadedData() = runTest {
         val show = RecordingAction<String, Int> { it.length }
-        val showError = RecordingAction<Throwable, Int> { -1 }
         val loadAndShow = LoadAndShow(
             load = RecordingAction<Unit, OneOf<String, Throwable>> { OneOf.First("data") },
-            show = show,
-            showError = showError
+            show = show
         )
 
-        assertEquals(4, loadAndShow(Unit))
+        assertEquals(OneOf.First(4), loadAndShow(Unit))
         assertEquals(listOf("data"), show.inputs)
-        assertTrue(showError.inputs.isEmpty())
     }
 
     @Test
-    fun showsTheErrorWhenLoadingFails() = runTest {
+    fun returnsTheErrorWhenLoadingFails() = runTest {
         val exception = IllegalStateException("boom")
         val show = RecordingAction<String, Int> { it.length }
-        val showError = RecordingAction<Throwable, Int> { -1 }
         val loadAndShow = LoadAndShow(
             load = RecordingAction<Unit, OneOf<String, Throwable>> { OneOf.Second(exception) },
-            show = show,
-            showError = showError
+            show = show
         )
 
-        assertEquals(-1, loadAndShow(Unit))
-        assertEquals(listOf<Throwable>(exception), showError.inputs)
+        assertEquals(OneOf.Second(exception), loadAndShow(Unit))
         assertTrue(show.inputs.isEmpty())
     }
 
@@ -57,8 +53,7 @@ class LoadAndShowTest {
                 RecordingAction<Unit, OneOf<String, Throwable>> { loaded.await() },
                 Publish<Progress>()
             ),
-            show = show to showFlow,
-            showError = showChannel<Throwable, Unit>()
+            show = show to showFlow
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { loadAndShow(Unit) }
 
@@ -73,17 +68,29 @@ class LoadAndShowTest {
     }
 
     @Test
-    fun projectsTheError() = runTest {
-        val exception = IllegalStateException("boom")
-        val (loadAndShow, uiState) = LoadAndShow(
-            load = RecordingAction<Unit, OneOf<String, Throwable>> { OneOf.Second(exception) } to
-                MutableStateFlow<Progress?>(null),
-            show = showChannel<String, Unit>(),
-            showError = showChannel<Throwable, Unit>()
+    fun insideTryAgain_showsTheErrorAndLoadsAgainOnRetry() = runTest {
+        val results = mutableListOf<OneOf<String, Throwable>>(
+            OneOf.Second(IllegalStateException("boom")),
+            OneOf.First("data")
         )
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { loadAndShow(Unit) }
+        val load = RecordingAction<Unit, OneOf<String, Throwable>> { results.removeAt(0) }
+        val (retryable, uiState) = TryAgain(
+            action = LoadAndShow(
+                load = load to MutableStateFlow<Progress?>(null),
+                show = showChannel<String, Unit>()
+            ),
+            showError = showChannel()
+        )
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { retryable(Unit) }
 
-        val error = uiState.value as LoadAndShowUiState.Error
-        assertEquals(exception, error.error.value.input)
+        val error = uiState.value as TryAgainUiState.Error
+        assertEquals("boom", error.flow.value.input.message)
+
+        error.flow.value.action(Unit)
+
+        val content = (uiState.value as TryAgainUiState.Action).flow.value
+            as LoadAndShowUiState.Content
+        assertEquals("data", content.content.value.input)
+        assertEquals(2, load.inputs.size)
     }
 }

@@ -11,6 +11,7 @@ import com.example.jetnews.testing.FakePostsRepository
 import com.example.jetnews.testing.RecordingAction
 import com.example.jetnews.testing.testPosts
 import com.genovich.components.OnDemandFeatureUiState
+import com.genovich.components.TryAgainUiState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -46,7 +47,8 @@ class ArticleFeatureTest {
         (uiState.value as OnDemandFeatureUiState.Open).flow.value.action("post4")
 
         val open = uiState.value as OnDemandFeatureUiState.FeatureAndClose
-        val content = open.featureFlow.value as LoadAndShowUiState.Content
+        val content = (open.featureFlow.value as TryAgainUiState.Action).flow.value
+            as LoadAndShowUiState.Content
         assertEquals(testPosts[4], content.content.value.article.value.input.post)
 
         open.closeFlow.value.action(Unit)
@@ -61,7 +63,7 @@ class ArticleFeatureTest {
         (uiState.value as OnDemandFeatureUiState.Open).flow.value.action("missing")
 
         val open = uiState.value as OnDemandFeatureUiState.FeatureAndClose
-        val error = open.featureFlow.value as LoadAndShowUiState.Error
-        assertEquals("postId doesn't exist", error.error.value.input.message)
+        val error = open.featureFlow.value as TryAgainUiState.Error
+        assertEquals("postId doesn't exist", error.flow.value.input.message)
     }
 }

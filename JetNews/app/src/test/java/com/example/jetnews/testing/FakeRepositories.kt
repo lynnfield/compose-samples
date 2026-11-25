@@ -27,7 +27,8 @@ class FakePostsRepository(
 }
 
 /**
- * A [PostsRepository] whose [getPosts] answers only when the test calls [completeGetPosts].
+ * A [PostsRepository] whose [getPosts] answers only when the test calls [completeGetPosts],
+ * with the posts or with an error.
  */
 class PendingPostsRepository(private val posts: List<Post> = testPosts) : PostsRepository {
 
@@ -41,9 +42,10 @@ class PendingPostsRepository(private val posts: List<Post> = testPosts) : PostsR
         pending = callback
     }
 
-    fun completeGetPosts() {
-        pending!!(Result.Success(posts))
+    fun completeGetPosts(error: Exception? = null) {
+        val callback = pending!!
         pending = null
+        callback(error?.let { Result.Error(it) } ?: Result.Success(posts))
     }
 }
 
