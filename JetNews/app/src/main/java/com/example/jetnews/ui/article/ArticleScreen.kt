@@ -54,8 +54,8 @@ import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.data.posts.impl.post3
 import com.example.jetnews.flow.article.ArticleUiState
+import com.example.jetnews.flow.article.CloseArticleUiState
 import com.example.jetnews.flow.common.LoadAndShowUiState
-import com.example.jetnews.flow.home.CloseArticleUiState
 import com.example.jetnews.model.Post
 import com.example.jetnews.ui.ErrorScreen
 import com.example.jetnews.ui.ThemedPreview

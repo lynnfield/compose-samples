@@ -17,6 +17,7 @@ import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.flow.article.ArticleContent
 import com.example.jetnews.flow.article.ArticleFeature
 import com.example.jetnews.flow.common.LoadAndShow
+import com.example.jetnews.flow.common.Refresh
 import com.example.jetnews.flow.common.showChannel
 import com.example.jetnews.flow.home.ShowHome
 import com.example.jetnews.flow.interests.Interests
@@ -62,10 +63,15 @@ fun JetNewsAssembly(
                 getFavorites = getFavorites,
                 showHome = showChannel(),
                 toggleFavorite = toggleFavorite,
+                openArticle = showChannel(),
                 article = ArticleFeature(
-                    openArticle = showChannel(),
-                    closeArticle = showChannel(),
-                    content = { ArticleContent(loadPost, getFavorites, toggleFavorite, sharePost) }
+                    content = ArticleContent(loadPost, getFavorites, toggleFavorite, sharePost),
+                    close = showChannel()
+                ),
+                refresh = Refresh(
+                    waitForRefresh = showChannel(),
+                    reload = ShowProgress(loadPosts, Publish<Progress>()),
+                    showError = showChannel()
                 )
             )
         ),

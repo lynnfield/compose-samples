@@ -3,6 +3,7 @@ package com.example.jetnews.flow
 import com.example.jetnews.data.interests.TopicSelection
 import com.example.jetnews.flow.article.ShowArticleUiState
 import com.example.jetnews.flow.common.LoadAndShowUiState
+import com.example.jetnews.flow.common.RefreshUiState
 import com.example.jetnews.flow.common.RetryableUiState
 import com.example.jetnews.flow.home.ShowHomeUiState
 import com.example.jetnews.model.Post
@@ -65,6 +66,20 @@ class JetNewsAssemblyTest {
 
         postsRepository.completeGetPosts()
         assertTrue(uiState.homeContent is ShowHomeUiState.Home)
+    }
+
+    @Test
+    fun pullToRefreshReloadsThePosts() = runTest {
+        val uiState = startApp()
+        postsRepository.completeGetPosts()
+
+        val home = uiState.homeContent as ShowHomeUiState.Home
+        (home.refresh.value as RefreshUiState.Idle).refresh.value.action(Unit)
+        assertTrue(home.refresh.value is RefreshUiState.Refreshing)
+
+        postsRepository.completeGetPosts()
+        assertTrue(home.refresh.value is RefreshUiState.Idle)
+        assertEquals(2, postsRepository.getPostsCalls)
     }
 
     @Test

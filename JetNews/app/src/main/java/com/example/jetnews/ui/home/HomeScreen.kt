@@ -33,6 +33,7 @@ import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.Divider
 import androidx.compose.material.DrawerValue
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.LocalContentAlpha
@@ -43,6 +44,9 @@ import androidx.compose.material.Snackbar
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.rememberDrawerState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
@@ -64,6 +68,7 @@ import com.example.jetnews.R
 import com.example.jetnews.flow.HomeUiState
 import com.example.jetnews.flow.common.ErrorUiState
 import com.example.jetnews.flow.common.LoadAndShowUiState
+import com.example.jetnews.flow.common.RefreshUiState
 import com.example.jetnews.flow.home.ShowHomeUiState
 import com.example.jetnews.model.Post
 import com.example.jetnews.ui.AppDrawer
@@ -79,8 +84,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Renders Home from the program's UI state: a spinner, the posts, an open article on top, or the
- * error with Retry.
+ * Renders Home from the program's UI state: a spinner, the posts (pull to refresh), an open
+ * article on top, or the error with Retry.
  */
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -133,9 +138,12 @@ private fun HomeBody(
 ) {
     val showHome = home?.home?.collectAsState()?.value
     val openArticle = home?.openArticle?.collectAsState()?.value
+    val refresh = home?.refresh?.collectAsState()?.value
+    val waitForRefresh = (refresh as? RefreshUiState.Idle)?.refresh?.collectAsState()?.value
+    val refreshError = (refresh as? RefreshUiState.Error)?.error?.collectAsState()?.value
     val openInterestsState by openInterests.collectAsState()
-    // The error waits for Retry; hiding the snackbar is only view state
-    var showError by remember(error) { mutableStateOf(error != null) }
+    // The load error waits for Retry; hiding its snackbar is only view state
+    var showLoadError by remember(error) { mutableStateOf(error != null) }
     HomeScreen(
         content = when {
             showHome != null -> HomeContent.Posts(showHome.input.posts)
@@ -143,9 +151,23 @@ private fun HomeBody(
             else -> HomeContent.Empty
         },
         favorites = showHome?.input?.favorites ?: emptySet(),
-        showError = showError,
-        onRetry = { error?.action?.invoke(Unit) },
-        onErrorDismissed = { showError = false },
+        refreshing = refresh is RefreshUiState.Refreshing,
+        // Pulling retries a failed load or refresh, too
+        onRefresh = {
+            waitForRefresh?.action?.invoke(Unit)
+                ?: refreshError?.action?.invoke(true)
+                ?: error?.action?.invoke(Unit)
+        },
+        showError = showLoadError || refreshError != null,
+        onRetry = {
+            error?.action?.invoke(Unit)
+            refreshError?.action?.invoke(true)
+        },
+        onErrorDismissed = {
+            showLoadError = false
+            // Keep the posts that are on screen
+            refreshError?.action?.invoke(false)
+        },
         onPostClicked = { postId -> openArticle?.action?.invoke(postId) },
         onToggleFavorite = { postId -> showHome?.action?.invoke(postId) },
         onInterestsClicked = { openInterestsState.action(Unit) },
@@ -162,10 +184,13 @@ sealed class HomeContent {
     object Empty : HomeContent()
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun HomeScreen(
     content: HomeContent,
     favorites: Set<String>,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
     showError: Boolean,
     onRetry: () -> Unit,
     onErrorDismissed: () -> Unit,
@@ -203,7 +228,13 @@ fun HomeScreen(
             )
         },
         content = { innerPadding ->
-            Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            val pullRefreshState = rememberPullRefreshState(refreshing, onRefresh)
+            Box(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .pullRefresh(pullRefreshState, enabled = content !is HomeContent.Loading)
+            ) {
                 Crossfade(targetState = content) { bodyContent ->
                     when (bodyContent) {
                         is HomeContent.Posts -> HomeScreenBody(
@@ -218,10 +249,16 @@ fun HomeScreen(
                             }
                         }
                         is HomeContent.Empty -> {
-                            // Empty
+                            // Empty, but scrollable, so it can be pulled to refresh
+                            Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
                         }
                     }
                 }
+                PullRefreshIndicator(
+                    refreshing = refreshing,
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
                 ErrorSnackbar(
                     showError = showError,
                     onRetry = onRetry,
@@ -385,6 +422,8 @@ private fun PreviewDrawerOpen() {
         HomeScreen(
             content = HomeContent.Posts(previewPosts()),
             favorites = emptySet(),
+            refreshing = false,
+            onRefresh = {},
             showError = false,
             onRetry = {},
             onErrorDismissed = {},
@@ -416,6 +455,8 @@ private fun PreviewDrawerOpenDark() {
         HomeScreen(
             content = HomeContent.Posts(previewPosts()),
             favorites = emptySet(),
+            refreshing = false,
+            onRefresh = {},
             showError = false,
             onRetry = {},
             onErrorDismissed = {},

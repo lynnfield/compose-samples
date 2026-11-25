@@ -34,11 +34,15 @@ class PendingPostsRepository(private val posts: List<Post> = testPosts) : PostsR
 
     private var pending: ((Result<List<Post>>) -> Unit)? = null
 
+    var getPostsCalls = 0
+        private set
+
     override fun getPost(postId: String, callback: (Result<Post?>) -> Unit) {
         callback(Result.Success(posts.find { it.id == postId }))
     }
 
     override fun getPosts(callback: (Result<List<Post>>) -> Unit) {
+        getPostsCalls++
         pending = callback
     }
 
