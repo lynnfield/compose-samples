@@ -83,6 +83,46 @@ class DefaultInterestsComponentTest {
         assertEquals(Section.People, recreated.model.value.section)
     }
 
+    @Test
+    fun onRetry_reloadsOnlyTheListsThatFailed() {
+        val repository = PeopleFailOnceRepository()
+        val component = createComponent(repository)
+        assertTrue(component.model.value.people is UiState.Error)
+
+        component.onRetry()
+
+        val model = component.model.value
+        assertEquals(UiState.Success(listOf("Person")), model.people)
+        assertEquals(1, repository.topicsCalls)
+        assertEquals(2, repository.peopleCalls)
+    }
+
+    /**
+     * Fails the first [getPeople] call, answers everything else synchronously.
+     */
+    private class PeopleFailOnceRepository : InterestsRepository {
+        var topicsCalls = 0
+        var peopleCalls = 0
+
+        override fun getTopics(callback: (Result<Map<String, List<String>>>) -> Unit) {
+            topicsCalls++
+            callback(Result.Success(emptyMap()))
+        }
+
+        override fun getPeople(callback: (Result<List<String>>) -> Unit) {
+            peopleCalls++
+            if (peopleCalls == 1) {
+                callback(Result.Error(IllegalStateException("boom")))
+            } else {
+                callback(Result.Success(listOf("Person")))
+            }
+        }
+
+        override fun getPublications(callback: (Result<List<String>>) -> Unit) {
+            callback(Result.Success(emptyList()))
+        }
+    }
+
     private fun <T> expected(call: ((Result<T>) -> Unit) -> Unit): UiState<T> {
         var state: UiState<T> = UiState.Loading
         call { result -> state = UiState.Success((result as Result.Success).data) }

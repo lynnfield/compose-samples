@@ -19,6 +19,7 @@ package com.example.jetnews.ui.home
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,14 +36,18 @@ import androidx.compose.material.LocalContentAlpha
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.ScaffoldState
+import androidx.compose.material.Snackbar
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.rememberDrawerState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -56,9 +61,9 @@ import com.example.jetnews.ui.AppDrawer
 import com.example.jetnews.ui.DrawerItem
 import com.example.jetnews.ui.PreviewHomeComponent
 import com.example.jetnews.ui.ThemedPreview
-import com.example.jetnews.ui.UiState
 import com.example.jetnews.ui.darkThemeColors
 import com.example.jetnews.ui.previewPosts
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -103,29 +108,84 @@ fun HomeScreen(
             )
         },
         content = { innerPadding ->
-            val modifier = Modifier.padding(innerPadding)
-            Crossfade(targetState = model.posts) { uiState ->
-                when (uiState) {
-                    is UiState.Success -> HomeScreenBody(
-                        modifier = modifier,
-                        posts = uiState.data,
-                        favorites = model.favorites,
-                        onPostClicked = component::onPostClicked,
-                        onToggleFavorite = component::onFavoriteToggled
-                    )
-                    is UiState.Loading -> {
-                        Text(
-                            modifier = modifier.fillMaxSize().wrapContentSize(Alignment.Center),
-                            text = "Loading"
+            val posts = model.posts
+            val content = when {
+                posts != null -> HomeContent.Posts(posts)
+                model.isLoading -> HomeContent.Loading
+                else -> HomeContent.Empty
+            }
+            Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                Crossfade(targetState = content) { bodyContent ->
+                    when (bodyContent) {
+                        is HomeContent.Posts -> HomeScreenBody(
+                            posts = bodyContent.posts,
+                            favorites = model.favorites,
+                            onPostClicked = component::onPostClicked,
+                            onToggleFavorite = component::onFavoriteToggled
                         )
-                    }
-                    else -> {
-                        // Empty
+                        is HomeContent.Loading -> {
+                            Text(
+                                modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center),
+                                text = "Loading"
+                            )
+                        }
+                        is HomeContent.Empty -> {
+                            // Empty
+                        }
                     }
                 }
+                ErrorSnackbar(
+                    showError = model.showError,
+                    onRetry = component::onRetry,
+                    onDismiss = component::onErrorDismissed,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
         }
     )
+}
+
+/**
+ * What the body of the Home screen shows.
+ */
+private sealed class HomeContent {
+    object Loading : HomeContent()
+    data class Posts(val posts: List<Post>) : HomeContent()
+    object Empty : HomeContent()
+}
+
+/**
+ * "Can't update latest news" with Retry. It hides itself after 5 seconds, as in upstream.
+ */
+@Composable
+fun ErrorSnackbar(
+    showError: Boolean,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (showError) {
+        val currentOnDismiss by rememberUpdatedState(onDismiss)
+        LaunchedEffect(Unit) {
+            delay(5000L)
+            currentOnDismiss()
+        }
+        Snackbar(
+            modifier = modifier.padding(16.dp),
+            action = {
+                TextButton(
+                    onClick = {
+                        onRetry()
+                        onDismiss()
+                    }
+                ) {
+                    Text(text = "RETRY")
+                }
+            }
+        ) {
+            Text(text = "Can't update latest news")
+        }
+    }
 }
 
 @Composable

@@ -19,7 +19,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * The Article screen: a single post, which can be bookmarked.
+ * The Article screen: a single post, which can be bookmarked. A failed load shows an error with
+ * Retry.
  */
 interface ArticleComponent {
 
@@ -28,6 +29,8 @@ interface ArticleComponent {
     fun onFavoriteToggled()
 
     fun onBackClicked()
+
+    fun onRetry()
 
     data class Model(
         val post: UiState<Post>,
@@ -59,9 +62,13 @@ class DefaultArticleComponent(
         onBack()
     }
 
+    override fun onRetry() {
+        retained.loadPost()
+    }
+
     private class Retained(
-        postId: String,
-        postsRepository: PostsRepository,
+        private val postId: String,
+        private val postsRepository: PostsRepository,
         favoritesStore: FavoritesStore,
         mainContext: CoroutineContext
     ) : InstanceKeeper.Instance {
@@ -76,6 +83,16 @@ class DefaultArticleComponent(
         )
 
         init {
+            loadPost()
+            scope.launch {
+                favoritesStore.favorites.collect { favorites ->
+                    model.update { it.copy(isFavorite = postId in favorites) }
+                }
+            }
+        }
+
+        fun loadPost() {
+            model.update { it.copy(post = UiState.Loading) }
             scope.launch {
                 val post = when (val result = postsRepository.awaitPost(postId)) {
                     is Result.Success -> {
@@ -88,11 +105,6 @@ class DefaultArticleComponent(
                     is Result.Error -> UiState.Error(result.exception)
                 }
                 model.update { it.copy(post = post) }
-            }
-            scope.launch {
-                favoritesStore.favorites.collect { favorites ->
-                    model.update { it.copy(isFavorite = postId in favorites) }
-                }
             }
         }
 

@@ -23,9 +23,15 @@ class PreviewHomeComponent(
     favorites: Set<String> = emptySet()
 ) : HomeComponent {
 
-    override val model = MutableValue(HomeComponent.Model(UiState.Success(posts), favorites))
+    override val model = MutableValue(
+        HomeComponent.Model(posts = posts, isLoading = false, showError = false, favorites = favorites)
+    )
 
     override fun onPostClicked(postId: String) = Unit
+
+    override fun onRetry() = Unit
+
+    override fun onErrorDismissed() = Unit
 
     override fun onFavoriteToggled(postId: String) {
         model.update { it.copy(favorites = it.favorites.toggle(postId)) }
@@ -44,6 +50,8 @@ class PreviewArticleComponent(
     }
 
     override fun onBackClicked() = Unit
+
+    override fun onRetry() = Unit
 }
 
 class PreviewInterestsComponent(
@@ -70,6 +78,8 @@ class PreviewInterestsComponent(
             it.copy(selectedTopics = topics)
         }
     }
+
+    override fun onRetry() = Unit
 }
 
 /**

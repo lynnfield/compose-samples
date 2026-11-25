@@ -53,6 +53,7 @@ import com.example.jetnews.R
 import com.example.jetnews.data.interests.impl.FakeInterestsRepository
 import com.example.jetnews.ui.AppDrawer
 import com.example.jetnews.ui.DrawerItem
+import com.example.jetnews.ui.ErrorScreen
 import com.example.jetnews.ui.PreviewInterestsComponent
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.UiState
@@ -107,6 +108,7 @@ fun InterestsScreen(
                 model = model,
                 onSectionSelected = component::onSectionSelected,
                 onTopicToggled = component::onTopicToggled,
+                onRetry = component::onRetry,
                 modifier = Modifier.padding(innerPadding)
             )
         }
@@ -118,6 +120,7 @@ private fun InterestsScreenBody(
     model: InterestsComponent.Model,
     onSectionSelected: (Section) -> Unit,
     onTopicToggled: (topicKey: String, selected: Boolean) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val sections = Section.values()
@@ -140,12 +143,16 @@ private fun InterestsScreenBody(
                     val topicsState = model.topics
                     if (topicsState is UiState.Success) {
                         TopicsTab(topicsState.data, model.selectedTopics, onTopicToggled)
+                    } else if (topicsState is UiState.Error) {
+                        InterestsError(onRetry)
                     }
                 }
                 Section.People -> {
                     val peopleState = model.people
                     if (peopleState is UiState.Success) {
                         PeopleTab(peopleState.data, model.selectedTopics, onTopicToggled)
+                    } else if (peopleState is UiState.Error) {
+                        InterestsError(onRetry)
                     }
                 }
                 Section.Publications -> {
@@ -156,11 +163,18 @@ private fun InterestsScreenBody(
                             model.selectedTopics,
                             onTopicToggled
                         )
+                    } else if (publicationsState is UiState.Error) {
+                        InterestsError(onRetry)
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun InterestsError(onRetry: () -> Unit) {
+    ErrorScreen(message = "Can't load your interests", onRetry = onRetry)
 }
 
 @Composable
