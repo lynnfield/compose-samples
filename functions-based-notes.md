@@ -149,3 +149,22 @@ did upstream). On `decompose` it finishes in the background.
   In exchange, "Share is busy until the sheet closes" is now visible in the program, and a second
   tap is ignored.
 
+
+### Verification on the Mac (2026-11-27)
+
+Temurin 21, `assembleDebug testDebugUnitTest ktlint` pass. Then a smoke test on the Pixel 8 API 35
+emulator, with no crashes:
+
+- Home: a spinner, then the feed or the "Can't update latest news" snackbar with RETRY over an
+  empty Home (as upstream). RETRY reloads; a pull on the empty Home reloads too.
+- Pull to refresh: the indicator shows, a failure shows the snackbar, RETRY reloads and keeps the feed.
+- Article and Interests open. Their loading and error states never show on the emulator, because
+  the fake `getPost` and the fake interests repository have no delay and never fail. Unit tests
+  cover them.
+- Known on both branches, not from step 2: the app bar is drawn under the status bar, and the
+  snackbar and the article's bottom bar sit behind the 3-button navigation bar (from targetSdk 35
+  edge-to-edge).
+- Share: the sheet opens, closes with back, and opens again (3 times).
+
+Unit tests: 48 pass; `testDebugUnitTest --rerun-tasks` takes 8.5 s with a warm daemon. Test
+sources have 16 compiler warnings (15 `ExperimentalCoroutinesApi` opt-ins, 1 unchecked cast).
