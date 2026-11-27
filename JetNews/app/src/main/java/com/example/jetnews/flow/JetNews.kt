@@ -1,7 +1,7 @@
 package com.example.jetnews.flow
 
 import com.example.jetnews.flow.article.ArticleUiState
-import com.example.jetnews.flow.common.LoadAndShowUiState
+import com.example.jetnews.flow.common.RetryableUiState
 import com.example.jetnews.flow.home.ShowHomeUiState
 import com.example.jetnews.flow.interests.InterestsFeatureUiState
 import com.example.jetnews.flow.interests.InterestsUiState
@@ -32,9 +32,9 @@ class JetNews(
 }
 
 /**
- * Home: "Loading", then the posts (or an open article), or blank on error.
+ * Home: loading, then the posts (or an open article), or the error with Retry.
  */
-typealias HomeUiState = LoadAndShowUiState<ShowHomeUiState<ArticleUiState>, UiState<Throwable, Nothing>>
+typealias HomeUiState = RetryableUiState<ShowHomeUiState<ArticleUiState>>
 
 /**
  * What the app shows. The UI renders exactly one case.

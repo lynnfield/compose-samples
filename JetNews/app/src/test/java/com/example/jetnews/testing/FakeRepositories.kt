@@ -27,23 +27,29 @@ class FakePostsRepository(
 }
 
 /**
- * A [PostsRepository] whose [getPosts] answers only when the test calls [completeGetPosts].
+ * A [PostsRepository] whose [getPosts] answers only when the test calls [completeGetPosts],
+ * with the posts or with an error.
  */
 class PendingPostsRepository(private val posts: List<Post> = testPosts) : PostsRepository {
 
     private var pending: ((Result<List<Post>>) -> Unit)? = null
+
+    var getPostsCalls = 0
+        private set
 
     override fun getPost(postId: String, callback: (Result<Post?>) -> Unit) {
         callback(Result.Success(posts.find { it.id == postId }))
     }
 
     override fun getPosts(callback: (Result<List<Post>>) -> Unit) {
+        getPostsCalls++
         pending = callback
     }
 
-    fun completeGetPosts() {
-        pending!!(Result.Success(posts))
+    fun completeGetPosts(error: Exception? = null) {
+        val callback = pending!!
         pending = null
+        callback(error?.let { Result.Error(it) } ?: Result.Success(posts))
     }
 }
 

@@ -17,6 +17,7 @@ import com.example.jetnews.data.posts.PostsRepository
 import com.example.jetnews.flow.article.ArticleContent
 import com.example.jetnews.flow.article.ArticleFeature
 import com.example.jetnews.flow.common.LoadAndShow
+import com.example.jetnews.flow.common.Refresh
 import com.example.jetnews.flow.common.showChannel
 import com.example.jetnews.flow.home.ShowHome
 import com.example.jetnews.flow.interests.Interests
@@ -30,6 +31,7 @@ import com.genovich.components.OneOf
 import com.genovich.components.Progress
 import com.genovich.components.Publish
 import com.genovich.components.ShowProgress
+import com.genovich.components.TryAgain
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -54,19 +56,26 @@ fun JetNewsAssembly(
         loadPeople = LoadPeople(interestsRepository),
         loadPublications = LoadPublications(interestsRepository)
     ),
-    home: Pair<Action<Unit, Nothing>, StateFlow<HomeUiState?>> = LoadAndShow(
-        load = ShowProgress(loadPosts, Publish<Progress>()),
-        show = ShowHome(
-            getFavorites = getFavorites,
-            showHome = showChannel(),
-            toggleFavorite = toggleFavorite,
-            article = ArticleFeature(
+    home: Pair<Action<Unit, Nothing>, StateFlow<HomeUiState?>> = TryAgain(
+        action = LoadAndShow(
+            load = ShowProgress(loadPosts, Publish<Progress>()),
+            show = ShowHome(
+                getFavorites = getFavorites,
+                showHome = showChannel(),
+                toggleFavorite = toggleFavorite,
                 openArticle = showChannel(),
-                closeArticle = showChannel(),
-                content = { ArticleContent(loadPost, getFavorites, toggleFavorite, sharePost) }
+                article = ArticleFeature(
+                    content = ArticleContent(loadPost, getFavorites, toggleFavorite, sharePost),
+                    close = showChannel()
+                ),
+                refresh = Refresh(
+                    waitForRefresh = showChannel(),
+                    reload = ShowProgress(loadPosts, Publish<Progress>()),
+                    showError = showChannel()
+                )
             )
         ),
-        showError = showChannel<Throwable, Nothing>()
+        showError = showChannel()
     ),
     interests: Pair<Action<Unit, Unit>, StateFlow<InterestsFeatureUiState?>> = InterestsFeature(
         openInterests = showChannel(),

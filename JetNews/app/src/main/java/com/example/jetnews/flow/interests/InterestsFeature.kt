@@ -2,24 +2,24 @@ package com.example.jetnews.flow.interests
 
 import com.example.jetnews.data.interests.TopicSelection
 import com.example.jetnews.flow.common.LoadAndShow
-import com.example.jetnews.flow.common.LoadAndShowUiState
+import com.example.jetnews.flow.common.RetryableUiState
 import com.example.jetnews.flow.common.showChannel
 import com.genovich.components.Action
 import com.genovich.components.OnDemandFeature
 import com.genovich.components.OnDemandFeatureUiState
 import com.genovich.components.OneOf
 import com.genovich.components.Progress
+import com.genovich.components.TryAgain
 import com.genovich.components.UiState
 import com.genovich.components.UiStateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The open Interests screen: blank while loading or on error (as in the base app), then the
- * interests.
+ * The open Interests screen: blank while loading (as in the base app), then the interests, or
+ * the error with Retry.
  */
-typealias InterestsUiState =
-    LoadAndShowUiState<UiState<InterestsState, TopicSelection>, UiState<Throwable, Nothing>>
+typealias InterestsUiState = RetryableUiState<UiState<InterestsState, TopicSelection>>
 
 /**
  * The Interests feature's UI state: waiting to be opened from the drawer, or open.
@@ -28,16 +28,19 @@ typealias InterestsFeatureUiState =
     OnDemandFeatureUiState<UiState<Unit, Unit>, UiState<Unit, Unit>, InterestsUiState>
 
 /**
- * The content of the Interests screen: load everything, then show it.
+ * The content of the Interests screen: load everything, then show it. If loading fails, show the
+ * error and load again on Retry.
  */
 fun InterestsContent(
     loadInterests: Action<Unit, OneOf<Interests, Throwable>>,
     getSelectedTopics: Action<Unit, Set<String>>,
     selectTopic: Action<TopicSelection, Unit>
-): Pair<Action<Unit, Nothing>, StateFlow<InterestsUiState?>> = LoadAndShow(
-    load = loadInterests to MutableStateFlow<Progress?>(null),
-    show = ShowInterests(getSelectedTopics, showChannel(), selectTopic),
-    showError = showChannel<Throwable, Nothing>()
+): Pair<Action<Unit, Nothing>, StateFlow<InterestsUiState?>> = TryAgain(
+    action = LoadAndShow(
+        load = loadInterests to MutableStateFlow<Progress?>(null),
+        show = ShowInterests(getSelectedTopics, showChannel(), selectTopic)
+    ),
+    showError = showChannel()
 )
 
 /**

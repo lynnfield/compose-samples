@@ -21,6 +21,7 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,24 +29,36 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ContentAlpha
 import androidx.compose.material.Divider
 import androidx.compose.material.DrawerValue
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.LocalContentAlpha
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.ScaffoldState
+import androidx.compose.material.Snackbar
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.rememberDrawerState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -53,7 +66,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.jetnews.R
 import com.example.jetnews.flow.HomeUiState
+import com.example.jetnews.flow.common.ErrorUiState
 import com.example.jetnews.flow.common.LoadAndShowUiState
+import com.example.jetnews.flow.common.RefreshUiState
 import com.example.jetnews.flow.home.ShowHomeUiState
 import com.example.jetnews.model.Post
 import com.example.jetnews.ui.AppDrawer
@@ -62,12 +77,15 @@ import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.article.ArticleRoute
 import com.example.jetnews.ui.darkThemeColors
 import com.example.jetnews.ui.previewPosts
+import com.genovich.components.TryAgainUiState
 import com.genovich.components.UiState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Renders Home from the program's UI state: "Loading", the posts, or an open article on top.
+ * Renders Home from the program's UI state: a spinner, the posts (pull to refresh), an open
+ * article on top, or the error with Retry.
  */
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -75,10 +93,20 @@ fun HomeRoute(
     home: StateFlow<HomeUiState>,
     openInterests: StateFlow<UiState<Unit, Unit>>
 ) {
-    // Hoisted, so the drawer keeps its state between Loading and the posts
+    // Hoisted, so the drawer keeps its state between loading, the error and the posts
     val scaffoldState = rememberScaffoldState()
     val homeState by home.collectAsState()
-    val loaded = homeState
+    val retryable = homeState
+    val error = if (retryable is TryAgainUiState.Error) {
+        retryable.flow.collectAsState().value
+    } else {
+        null
+    }
+    val loaded = if (retryable is TryAgainUiState.Action) {
+        retryable.flow.collectAsState().value
+    } else {
+        null
+    }
     val showHome = if (loaded is LoadAndShowUiState.Content) {
         loaded.content.collectAsState().value
     } else {
@@ -90,8 +118,9 @@ fun HomeRoute(
             ArticleRoute(article = article.article, close = article.close)
         } else {
             HomeBody(
-                homeState = homeState,
+                loading = loaded is LoadAndShowUiState.Loading,
                 home = if (showHome is ShowHomeUiState.Home) showHome else null,
+                error = error,
                 openInterests = openInterests,
                 scaffoldState = scaffoldState
             )
@@ -101,21 +130,44 @@ fun HomeRoute(
 
 @Composable
 private fun HomeBody(
-    homeState: HomeUiState,
+    loading: Boolean,
     home: ShowHomeUiState.Home?,
+    error: ErrorUiState?,
     openInterests: StateFlow<UiState<Unit, Unit>>,
     scaffoldState: ScaffoldState
 ) {
     val showHome = home?.home?.collectAsState()?.value
     val openArticle = home?.openArticle?.collectAsState()?.value
+    val refresh = home?.refresh?.collectAsState()?.value
+    val waitForRefresh = (refresh as? RefreshUiState.Idle)?.refresh?.collectAsState()?.value
+    val refreshError = (refresh as? RefreshUiState.Error)?.error?.collectAsState()?.value
     val openInterestsState by openInterests.collectAsState()
+    // The load error waits for Retry; hiding its snackbar is only view state
+    var showLoadError by remember(error) { mutableStateOf(error != null) }
     HomeScreen(
         content = when {
             showHome != null -> HomeContent.Posts(showHome.input.posts)
-            homeState is LoadAndShowUiState.Loading -> HomeContent.Loading
+            loading -> HomeContent.Loading
             else -> HomeContent.Empty
         },
         favorites = showHome?.input?.favorites ?: emptySet(),
+        refreshing = refresh is RefreshUiState.Refreshing,
+        // Pulling retries a failed load or refresh, too
+        onRefresh = {
+            waitForRefresh?.action?.invoke(Unit)
+                ?: refreshError?.action?.invoke(true)
+                ?: error?.action?.invoke(Unit)
+        },
+        showError = showLoadError || refreshError != null,
+        onRetry = {
+            error?.action?.invoke(Unit)
+            refreshError?.action?.invoke(true)
+        },
+        onErrorDismissed = {
+            showLoadError = false
+            // Keep the posts that are on screen
+            refreshError?.action?.invoke(false)
+        },
         onPostClicked = { postId -> openArticle?.action?.invoke(postId) },
         onToggleFavorite = { postId -> showHome?.action?.invoke(postId) },
         onInterestsClicked = { openInterestsState.action(Unit) },
@@ -132,10 +184,16 @@ sealed class HomeContent {
     object Empty : HomeContent()
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun HomeScreen(
     content: HomeContent,
     favorites: Set<String>,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
+    showError: Boolean,
+    onRetry: () -> Unit,
+    onErrorDismissed: () -> Unit,
     onPostClicked: (postId: String) -> Unit,
     onToggleFavorite: (postId: String) -> Unit,
     onInterestsClicked: () -> Unit,
@@ -170,29 +228,80 @@ fun HomeScreen(
             )
         },
         content = { innerPadding ->
-            val modifier = Modifier.padding(innerPadding)
-            Crossfade(targetState = content) { bodyContent ->
-                when (bodyContent) {
-                    is HomeContent.Posts -> HomeScreenBody(
-                        modifier = modifier,
-                        posts = bodyContent.posts,
-                        favorites = favorites,
-                        onPostClicked = onPostClicked,
-                        onToggleFavorite = onToggleFavorite
-                    )
-                    is HomeContent.Loading -> {
-                        Text(
-                            modifier = modifier.fillMaxSize().wrapContentSize(Alignment.Center),
-                            text = "Loading"
+            val pullRefreshState = rememberPullRefreshState(refreshing, onRefresh)
+            Box(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .pullRefresh(pullRefreshState, enabled = content !is HomeContent.Loading)
+            ) {
+                Crossfade(targetState = content) { bodyContent ->
+                    when (bodyContent) {
+                        is HomeContent.Posts -> HomeScreenBody(
+                            posts = bodyContent.posts,
+                            favorites = favorites,
+                            onPostClicked = onPostClicked,
+                            onToggleFavorite = onToggleFavorite
                         )
-                    }
-                    is HomeContent.Empty -> {
-                        // Empty
+                        is HomeContent.Loading -> {
+                            Box(Modifier.fillMaxSize().wrapContentSize(Alignment.Center)) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                        is HomeContent.Empty -> {
+                            // Empty, but scrollable, so it can be pulled to refresh
+                            Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
+                        }
                     }
                 }
+                PullRefreshIndicator(
+                    refreshing = refreshing,
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
+                ErrorSnackbar(
+                    showError = showError,
+                    onRetry = onRetry,
+                    onDismiss = onErrorDismissed,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
         }
     )
+}
+
+/**
+ * "Can't update latest news" with Retry. It hides itself after 5 seconds, as in upstream.
+ */
+@Composable
+fun ErrorSnackbar(
+    showError: Boolean,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (showError) {
+        val currentOnDismiss by rememberUpdatedState(onDismiss)
+        LaunchedEffect(Unit) {
+            delay(5000L)
+            currentOnDismiss()
+        }
+        Snackbar(
+            modifier = modifier.padding(16.dp),
+            action = {
+                TextButton(
+                    onClick = {
+                        onRetry()
+                        onDismiss()
+                    }
+                ) {
+                    Text(text = "RETRY")
+                }
+            }
+        ) {
+            Text(text = "Can't update latest news")
+        }
+    }
 }
 
 @Composable
@@ -313,6 +422,11 @@ private fun PreviewDrawerOpen() {
         HomeScreen(
             content = HomeContent.Posts(previewPosts()),
             favorites = emptySet(),
+            refreshing = false,
+            onRefresh = {},
+            showError = false,
+            onRetry = {},
+            onErrorDismissed = {},
             onPostClicked = {},
             onToggleFavorite = {},
             onInterestsClicked = {},
@@ -341,6 +455,11 @@ private fun PreviewDrawerOpenDark() {
         HomeScreen(
             content = HomeContent.Posts(previewPosts()),
             favorites = emptySet(),
+            refreshing = false,
+            onRefresh = {},
+            showError = false,
+            onRetry = {},
+            onErrorDismissed = {},
             onPostClicked = {},
             onToggleFavorite = {},
             onInterestsClicked = {},

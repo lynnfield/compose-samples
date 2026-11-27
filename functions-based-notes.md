@@ -65,13 +65,13 @@ the Android build were verified on Vladimir's Mac with Temurin 21 (Android Studi
 
 ## Open questions
 
-- [ ] Step 2: wrap Home, Article and Interests content in `TryAgain` and add the error screen, the article spinner and swipe to refresh (upstream `5a40e834`).
+- [x] Step 2: wrap Home, Article and Interests content in `TryAgain` and add the error screen, the article spinner and swipe to refresh (upstream `5a40e834`). Done, see below.
 - [ ] Process death: is restoring the open article worth a design (deviation 10), or a non-goal for the comparison?
 - [ ] `showChannel()` is a local helper because the library's no-argument `Show()` is deprecated. Should `uistate` grow a non-deprecated binding?
 - [ ] The UI layer collects nested flows (`StateFlow<StateFlow<…>>`), which makes `JetnewsApp` and the routes verbose. Would a flattening helper in `combine` (or projections that carry values instead of flows) read better?
 - [ ] Move `LoadAndShow` into the components library (review comment on PR #1). Not now; it stays local for step 1.
 - [ ] Move `showChannel()` into `uistate` in the components library (review comment on PR #1). Not now; same question as the `Show()` item above.
-- [ ] `SharePost` returns as soon as the chooser starts, so the Article loop accepts a new tap while the share sheet is still open. Waiting until the share closes needs an `ActivityResultLauncher` registered by `MainActivity` and handed to the leaf through a port that outlives the Activity (the leaf lives in the ViewModel). Parked for step 2 (decided in review on PR #1).
+- [x] (Done in step 2.) `SharePost` returns as soon as the chooser starts, so the Article loop accepts a new tap while the share sheet is still open. Waiting until the share closes needs an `ActivityResultLauncher` registered by `MainActivity` and handed to the leaf through a port that outlives the Activity (the leaf lives in the ViewModel). Parked for step 2 (decided in review on PR #1).
 - [ ] Parked idea (review comment on PR #1): create the program and hold its reference in `Application` instead of `JetnewsViewModel`, and inject it with `AppComponentFactory`, `ActivityLifecycleCallbacks` or `getSystemService()`.
 - [ ] ktlint 0.36.0 is very old; upgrade it on both branches together?
 - [ ] New files have no license header, as on `decompose`.
@@ -96,3 +96,75 @@ Done on 2026-11-14 on a Pixel 8 API 35 emulator:
 from the toolchain migration `47e63f7`), so the app bar sits under the status bar and the drawer
 button can't be tapped; the drawer still opens with an edge swipe. It affects `decompose` the same
 way and should be fixed on both branches (window insets on the `TopAppBar` / `Scaffold`).
+
+## Step 2: loading and error screens, pull to refresh (upstream `5a40e834`)
+
+Commits, mirrored on `decompose` (5 is functions-only):
+
+1. The fake posts repository waits 2 s on the first call and 1.5 s on every call, and fails 1/3 of
+   the time (upstream). The failure rate is a parameter; the UI test helper sets it to 0.
+2. Retry failed loads with `TryAgain` on Home, Article and Interests.
+3. A spinner while Home and an article load.
+4. Pull to refresh on Home.
+5. `SharePost` returns only when the share sheet closes.
+
+| Topic | Decision | Why |
+|---|---|---|
+| Errors | `LoadAndShow(load, show)` returns `OneOf<Output, Throwable>`; the library's `TryAgain` around it shows the error and runs it again when the error T-function is answered | The library already has the block. `LoadAndShow` lost its `showError` and its `Error` UI case; `RetryableUiState<T>` names the nested UI state. |
+| Home error | An empty Home with upstream's snackbar and RETRY. The 5 s auto-hide is view state only: the error keeps waiting, and pulling to refresh answers it too | Upstream behaves the same: after the snackbar hides, you can still pull. |
+| Refresh | A generic `Refresh(waitForRefresh, reload, showError)` (`flow/common`) returning the new data; its error answers `true` (Retry) or `false` (dismissed, keep the old data) | Upstream keeps the old posts on a failed refresh. |
+| Home structure | `ShowHome` races bookmarks (an inner `whileActive` loop), `openArticle` and `refresh`. A card tap leaves the race and runs the article until Back. | A bookmark must not cancel a running refresh; a finished refresh must not close an open article (see the friction log). |
+| Article | No longer an `OnDemandFeature`: `ArticleFeature(content, close)` is the content in parallel with Back, started with the id `openArticle` answered. One content instance is reused for every opening. | Its `open` had to move into Home's race. The library's `Show`, `ShowProgress` and `TryAgain` clear their state when cancelled, so reuse is safe. |
+| Article and Interests errors | An error screen with Retry | Upstream left both blank; added on both branches. |
+| Article loading | `ShowProgress` around `loadPost`, rendered as the app bar with Back above a spinner | Decided for step 2 in the plan. |
+| Share | `SharePost(ActivityResultPort<Intent>)`: `MainActivity` registers a `StartActivityForResult` launcher, attaches it in `onCreate`, detaches it in `onDestroy` and reports the result | The program lives in the ViewModel and outlives the Activity. A result that arrives in a recreated Activity still resumes the program. |
+| Swipe to refresh | Material `pullRefresh` + `PullRefreshIndicator` (`@ExperimentalMaterialApi`) | Same as `decompose`. |
+| Library promotion | Nothing moved to `com.genovich.components` in this step | No block was written for a second time. Candidates for the next release: `LoadAndShow` (used 3 times), `Refresh`, `showChannel()`, `ActivityResultPort`. |
+
+**Behavior to note:** opening an article cancels a refresh that is still running (as leaving Home
+did upstream). On `decompose` it finishes in the background.
+
+### Friction log
+
+- Retry was nearly free: `TryAgain(LoadAndShow(…), showChannel())` on each screen. Interests
+  changed by one line, against +22 on `decompose`.
+- Refresh broke a step 1 property. In step 1 the article ran as a sibling lane of Home
+  (`OnDemandFeature`), so Home stayed live under it. With refresh as another lane, a refresh that
+  finishes while the article is open restarts Home's loop, and `parallel` cancels the article with
+  it. The fix was to take the article out of the race: a card tap ends the race, then the article
+  runs. The first design looked right and was wrong; only thinking through "which lane finishing
+  cancels which" found it. Tests now pin it (`openingAnArticleCancelsARefresh`,
+  `aBookmarkDoesNotCancelARefresh`).
+- The same question came up for bookmarks: a tap used to restart the whole loop, which would
+  cancel a running refresh. Bookmarks moved into an inner loop.
+- The UI pays for the nesting. Home's route collects `TryAgainUiState` → `LoadAndShowUiState` →
+  `ShowHomeUiState` → `RefreshUiState` → `UiState`, and decides which T-function a pull answers
+  (refresh, retry the refresh, or retry the first load). `HomeScreen.kt` grew by 94 lines here
+  against 60 on `decompose`.
+- Two kinds of error under one snackbar: the first load's error waits forever (hiding the snackbar
+  is view state), the refresh's error is answered "dismissed". Same pixels, different T-function
+  types.
+- Waiting for the share sheet needed a port (`ActivityResultPort`, attach/detach in
+  `MainActivity`), about 30 lines, because the Activity and the program have different lifetimes.
+  In exchange, "Share is busy until the sheet closes" is now visible in the program, and a second
+  tap is ignored.
+
+
+### Verification on the Mac (2026-11-27)
+
+Temurin 21, `assembleDebug testDebugUnitTest ktlint` pass. Then a smoke test on the Pixel 8 API 35
+emulator, with no crashes:
+
+- Home: a spinner, then the feed or the "Can't update latest news" snackbar with RETRY over an
+  empty Home (as upstream). RETRY reloads; a pull on the empty Home reloads too.
+- Pull to refresh: the indicator shows, a failure shows the snackbar, RETRY reloads and keeps the feed.
+- Article and Interests open. Their loading and error states never show on the emulator, because
+  the fake `getPost` and the fake interests repository have no delay and never fail. Unit tests
+  cover them.
+- Known on both branches, not from step 2: the app bar is drawn under the status bar, and the
+  snackbar and the article's bottom bar sit behind the 3-button navigation bar (from targetSdk 35
+  edge-to-edge).
+- Share: the sheet opens, closes with back, and opens again (3 times).
+
+Unit tests: 48 pass; `testDebugUnitTest --rerun-tasks` takes 8.5 s with a warm daemon. Test
+sources have 16 compiler warnings (15 `ExperimentalCoroutinesApi` opt-ins, 1 unchecked cast).
