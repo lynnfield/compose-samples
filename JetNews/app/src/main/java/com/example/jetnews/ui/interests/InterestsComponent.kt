@@ -20,7 +20,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * The Interests screen: topics, people and publications the user can follow, in tabs.
+ * The Interests screen: topics, people and publications the user can follow, in tabs. A list
+ * that fails to load shows an error with Retry.
  */
 interface InterestsComponent {
 
@@ -29,6 +30,8 @@ interface InterestsComponent {
     fun onSectionSelected(section: Section)
 
     fun onTopicToggled(topicKey: String, selected: Boolean)
+
+    fun onRetry()
 
     enum class Section(val title: String) {
         Topics("Topics"),
@@ -72,8 +75,12 @@ class DefaultInterestsComponent(
         selectedTopicsStore.setSelected(topicKey, selected)
     }
 
+    override fun onRetry() {
+        retained.loadFailed()
+    }
+
     private class Retained(
-        interestsRepository: InterestsRepository,
+        private val interestsRepository: InterestsRepository,
         selectedTopicsStore: SelectedTopicsStore,
         mainContext: CoroutineContext
     ) : InstanceKeeper.Instance {
@@ -91,22 +98,45 @@ class DefaultInterestsComponent(
         )
 
         init {
-            scope.launch {
-                val topics = interestsRepository.awaitTopics().toUiState()
-                model.update { it.copy(topics = topics) }
-            }
-            scope.launch {
-                val people = interestsRepository.awaitPeople().toUiState()
-                model.update { it.copy(people = people) }
-            }
-            scope.launch {
-                val publications = interestsRepository.awaitPublications().toUiState()
-                model.update { it.copy(publications = publications) }
-            }
+            loadTopics()
+            loadPeople()
+            loadPublications()
             scope.launch {
                 selectedTopicsStore.selectedTopics.collect { selectedTopics ->
                     model.update { it.copy(selectedTopics = selectedTopics) }
                 }
+            }
+        }
+
+        // Loads again the lists whose last load failed
+        fun loadFailed() {
+            val current = model.value
+            if (current.topics is UiState.Error) loadTopics()
+            if (current.people is UiState.Error) loadPeople()
+            if (current.publications is UiState.Error) loadPublications()
+        }
+
+        private fun loadTopics() {
+            model.update { it.copy(topics = UiState.Loading) }
+            scope.launch {
+                val topics = interestsRepository.awaitTopics().toUiState()
+                model.update { it.copy(topics = topics) }
+            }
+        }
+
+        private fun loadPeople() {
+            model.update { it.copy(people = UiState.Loading) }
+            scope.launch {
+                val people = interestsRepository.awaitPeople().toUiState()
+                model.update { it.copy(people = people) }
+            }
+        }
+
+        private fun loadPublications() {
+            model.update { it.copy(publications = UiState.Loading) }
+            scope.launch {
+                val publications = interestsRepository.awaitPublications().toUiState()
+                model.update { it.copy(publications = publications) }
             }
         }
 

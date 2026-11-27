@@ -20,13 +20,16 @@ import android.content.Context
 import android.content.Intent
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.AlertDialog
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.LocalContentColor
@@ -43,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -52,6 +56,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.example.jetnews.R
 import com.example.jetnews.data.posts.impl.post3
 import com.example.jetnews.model.Post
+import com.example.jetnews.ui.ErrorScreen
 import com.example.jetnews.ui.PreviewArticleComponent
 import com.example.jetnews.ui.ThemedPreview
 import com.example.jetnews.ui.UiState
@@ -59,17 +64,26 @@ import com.example.jetnews.ui.darkThemeColors
 import com.example.jetnews.ui.home.BookmarkButton
 import com.example.jetnews.ui.previewPost
 
+/**
+ * Renders the article component: a spinner while the post loads, then the post, or the error
+ * with Retry.
+ */
 @Composable
 fun ArticleScreen(component: ArticleComponent) {
     val model by component.model.subscribeAsState()
-    val postState = model.post
-    if (postState is UiState.Success<Post>) {
-        ArticleScreen(
+    when (val postState = model.post) {
+        is UiState.Success<Post> -> ArticleScreen(
             post = postState.data,
             isFavorite = model.isFavorite,
             onBack = component::onBackClicked,
             onToggleFavorite = component::onFavoriteToggled
         )
+        is UiState.Error -> ArticleStatusScreen(onBack = component::onBackClicked) {
+            ErrorScreen(message = "Can't load the article", onRetry = component::onRetry)
+        }
+        is UiState.Loading -> ArticleStatusScreen(onBack = component::onBackClicked) {
+            CircularProgressIndicator(Modifier.align(Alignment.Center))
+        }
     }
 }
 
@@ -114,6 +128,34 @@ private fun ArticleScreen(
                 onToggleFavorite = onToggleFavorite,
                 onUnimplementedAction = { showDialog = true }
             )
+        }
+    )
+}
+
+/**
+ * The article's app bar with Back, above something that isn't the post yet: the progress or
+ * the error.
+ */
+@Composable
+fun ArticleStatusScreen(
+    onBack: () -> Unit,
+    content: @Composable() BoxScope.() -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    }
+                }
+            )
+        },
+        content = { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                content()
+            }
         }
     )
 }

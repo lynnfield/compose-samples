@@ -5,10 +5,12 @@ import com.example.jetnews.data.favorites.FavoritesStore
 import com.example.jetnews.data.posts.impl.posts
 import com.example.jetnews.testing.ControllablePostsRepository
 import com.example.jetnews.testing.TestComponentContext
-import com.example.jetnews.ui.UiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -32,7 +34,8 @@ class DefaultHomeComponentTest {
     fun startsLoading() {
         val component = createComponent()
 
-        assertEquals(UiState.Loading, component.model.value.posts)
+        assertNull(component.model.value.posts)
+        assertTrue(component.model.value.isLoading)
         assertEquals(1, repository.postsRequests)
     }
 
@@ -42,17 +45,79 @@ class DefaultHomeComponentTest {
 
         repository.completePosts(Result.Success(posts))
 
-        assertEquals(UiState.Success(posts), component.model.value.posts)
+        assertEquals(posts, component.model.value.posts)
+        assertFalse(component.model.value.isLoading)
     }
 
     @Test
-    fun loadingFails() {
+    fun loadingFailsWithAnError() {
         val component = createComponent()
-        val exception = IllegalStateException("boom")
 
-        repository.completePosts(Result.Error(exception))
+        repository.completePosts(Result.Error(IllegalStateException("boom")))
 
-        assertEquals(UiState.Error(exception), component.model.value.posts)
+        assertNull(component.model.value.posts)
+        assertFalse(component.model.value.isLoading)
+        assertTrue(component.model.value.showError)
+    }
+
+    @Test
+    fun onRetry_loadsAgain() {
+        val component = createComponent()
+        repository.completePosts(Result.Error(IllegalStateException("boom")))
+
+        component.onRetry()
+        assertTrue(component.model.value.isLoading)
+        assertFalse(component.model.value.showError)
+        assertEquals(2, repository.postsRequests)
+
+        repository.completePosts(Result.Success(posts))
+        assertEquals(posts, component.model.value.posts)
+    }
+
+    @Test
+    fun onRefresh_keepsThePostsWhileReloading() {
+        val component = createComponent()
+        repository.completePosts(Result.Success(posts))
+
+        component.onRefresh()
+        assertEquals(posts, component.model.value.posts)
+        assertTrue(component.model.value.isLoading)
+
+        val newPosts = posts.take(1)
+        repository.completePosts(Result.Success(newPosts))
+        assertEquals(newPosts, component.model.value.posts)
+        assertFalse(component.model.value.isLoading)
+    }
+
+    @Test
+    fun aFailedRefreshKeepsThePostsAndShowsTheError() {
+        val component = createComponent()
+        repository.completePosts(Result.Success(posts))
+
+        component.onRefresh()
+        repository.completePosts(Result.Error(IllegalStateException("offline")))
+
+        assertEquals(posts, component.model.value.posts)
+        assertTrue(component.model.value.showError)
+    }
+
+    @Test
+    fun onRefresh_whileLoadingDoesNotLoadTwice() {
+        val component = createComponent()
+
+        component.onRefresh()
+
+        assertEquals(1, repository.postsRequests)
+    }
+
+    @Test
+    fun onErrorDismissed_hidesTheError() {
+        val component = createComponent()
+        repository.completePosts(Result.Error(IllegalStateException("boom")))
+
+        component.onErrorDismissed()
+
+        assertFalse(component.model.value.showError)
     }
 
     @Test
@@ -97,7 +162,7 @@ class DefaultHomeComponentTest {
         val recreated = createComponent(TestComponentContext(instanceKeeper = first.instanceKeeper))
 
         assertEquals(1, repository.postsRequests)
-        assertEquals(UiState.Success(posts), recreated.model.value.posts)
+        assertEquals(posts, recreated.model.value.posts)
     }
 
     @Test
@@ -108,6 +173,6 @@ class DefaultHomeComponentTest {
         context.instanceKeeper.destroy()
         repository.completePosts(Result.Success(posts))
 
-        assertEquals(UiState.Loading, component.model.value.posts)
+        assertNull(component.model.value.posts)
     }
 }

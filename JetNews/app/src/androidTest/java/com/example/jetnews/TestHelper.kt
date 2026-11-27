@@ -37,7 +37,8 @@ import com.example.jetnews.ui.root.DefaultRootComponent
 fun ComposeContentTestRule.launchJetNewsApp(context: Context) {
     setContent {
         val root = remember {
-            val appContainer = AppContainer(context)
+            // No random network errors, so the tests are deterministic
+            val appContainer = AppContainer(context, postsFailureRate = 0f)
             DefaultRootComponent(
                 componentContext = DefaultComponentContext(LifecycleRegistry().apply { resume() }),
                 postsRepository = appContainer.postsRepository,

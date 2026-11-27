@@ -32,8 +32,12 @@ import java.util.concurrent.Executors
  * Dependency Injection container at the application level.
  *
  * Variables are initialized lazily and the same instance is shared across the whole app.
+ * [postsFailureRate] is how often the fake posts repository fails; UI tests pass 0.
  */
-class AppContainer(private val applicationContext: Context) {
+class AppContainer(
+    private val applicationContext: Context,
+    private val postsFailureRate: Float = 0.33f
+) {
 
     private val executorService: ExecutorService by lazy {
         Executors.newFixedThreadPool(4)
@@ -47,7 +51,8 @@ class AppContainer(private val applicationContext: Context) {
         FakePostsRepository(
             executorService = executorService,
             resultThreadHandler = mainThreadHandler,
-            resources = applicationContext.resources
+            resources = applicationContext.resources,
+            failureRate = postsFailureRate
         )
     }
 

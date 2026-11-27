@@ -70,6 +70,19 @@ class DefaultArticleComponentTest {
     }
 
     @Test
+    fun onRetry_loadsThePostAgain() {
+        val component = createComponent()
+        repository.completePost(Result.Error(IllegalStateException("boom")))
+
+        component.onRetry()
+        assertEquals(UiState.Loading, component.model.value.post)
+        assertEquals(listOf(post3.id, post3.id), repository.postRequests)
+
+        repository.completePost(Result.Success(post3))
+        assertEquals(UiState.Success(post3), component.model.value.post)
+    }
+
+    @Test
     fun isFavoriteFollowsTheStore() {
         favoritesStore.toggle(post3.id)
         val component = createComponent()
